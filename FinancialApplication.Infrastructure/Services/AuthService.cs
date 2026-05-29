@@ -1,18 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Azure.Core;
+using FinancialApp.Application.DTOs;
 using FinancialApp.Infrastructure.DTOs;
 using FinancialApp.Infrastructure.Interfaces;
 using FinancialApp.Infrastructure.Security;
-using AuthenticationResultDto = FinancialApplication.Application.DTOs.AuthenticationResult;
 using FinancialApplication.Application.DTOs;
+using FinancialApplication.Application.Interfaces;
 using FinancialApplication.Domain.Domain.Entity;
 using FinancialApplication.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Configuration;
-using FinancialApplication.Application.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
+using AuthenticationResultDto = FinancialApplication.Application.DTOs.AuthenticationResult;
 
 namespace FinancialApp.Infrastructure.Services
 {
@@ -75,16 +81,39 @@ namespace FinancialApp.Infrastructure.Services
 
         public async Task<AuthenticationResultDto> LoginAsync(LoginUserDto request)
         {
+            if (string.IsNullOrWhiteSpace(request.Email))
+                throw new UnauthorizedAccessException("Email is required");
+
+            if (string.IsNullOrWhiteSpace(request.Password))
+                throw new UnauthorizedAccessException("Password is required");
+
             var user = await _context.Users
+               
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
+           
 
-            if (user == null || !user.IsActive || !_passwordHasher.VerifyPassword(request.Password, user.Password))
-            {
-                throw new UnauthorizedAccessException("Invalid email or password.");
-            }
+            if (user == null)
+                throw new UnauthorizedAccessException("Email does not exist");
 
-            return await AuthenticateAsync(user.Id, user.Email, user.Username, user.Role.Name);
+            if (!user.IsActive)
+                throw new UnauthorizedAccessException("Account is deactivated");
+
+            if (!_passwordHasher.VerifyPassword(request.Password, user.Password))
+                throw new UnauthorizedAccessException("Incorrect password");
+
+            if (user.Role == null)
+                throw new UnauthorizedAccessException("User role not assigned");
+
+            return await AuthenticateAsync(
+                user.Id,
+                user.Email,
+                user.Username,
+                user.Role.Name
+                
+                
+                
+            );
         }
 
         public async Task<AuthenticationResultDto> AuthenticateAsync(Guid userId, string email, string username, string role)
@@ -113,7 +142,8 @@ namespace FinancialApp.Infrastructure.Services
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
                 ExpiresAt = expiresAt,
-                ExpiresIn = expiresIn
+                ExpiresIn = expiresIn,
+                Role = role
             };
         }
 
@@ -139,7 +169,7 @@ namespace FinancialApp.Infrastructure.Services
             return await Task.FromResult(false);
         }
 
-        public async Task<bool> Logout(Guid userId, string token)
+        public async Task<bool> _Logout(Guid userId, string token)
         {
             if (string.IsNullOrWhiteSpace(token))
             {
@@ -153,11 +183,71 @@ namespace FinancialApp.Infrastructure.Services
                 return false;
             }
 
+
             _context.RefreshTokens.Remove(refreshToken);
             user.UpdatedAt = DateTime.UtcNow;
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
             return true;
+        }
+        public async Task<AuthDto> CheckAuth(Guid userId, string token)
+        {
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null || !user.IsActive)
+            {
+                return null;
+            }
+
+            var validUserId = _tokenGenerator.ValidateTokenAndGetUserId(token);
+            if (!validUserId.HasValue || validUserId.Value != userId)
+            {
+                return null;
+            }
+
+            return new AuthDto
+            {
+                UserId = user.Id,
+                user = user.Username,
+                role = user.Role != null ? user.Role.Name : "User"
+            };
+        }
+
+        public ClaimsPrincipal ValidateToken(string token)
+        {
+            try
+            {
+                var jwtSettings = _configuration.GetSection("Jwt");
+                var secretKey = jwtSettings["Key"];
+
+                if (string.IsNullOrEmpty(secretKey) || secretKey.Length < 32)
+                {
+                    return null;
+                }
+
+                var key = Encoding.ASCII.GetBytes(secretKey);
+                var tokenHandler = new JwtSecurityTokenHandler();
+
+                var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidateAudience = true,
+                    ValidAudience = jwtSettings["Audience"],
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                }, out SecurityToken validatedToken);
+
+                return principal;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ using FinancialApp.Infrastructure.Services;
 using FinancialApplication.Application.Interfaces;
 using FinancialApplication.Infrastructure.Data;
 using FinancialApplication.Infrastructure.Services;
+using Microsoft.AspNetCore.CookiePolicy;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -16,7 +17,16 @@ if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 }
-
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ReactPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
@@ -32,6 +42,12 @@ builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    options.MinimumSameSitePolicy = SameSiteMode.None;
+    options.Secure = CookieSecurePolicy.Always;
+    options.HttpOnly = HttpOnlyPolicy.Always;
+});
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["Key"];
@@ -161,6 +177,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseRouting();
+app.UseCookiePolicy();
+app.UseCors("ReactPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 

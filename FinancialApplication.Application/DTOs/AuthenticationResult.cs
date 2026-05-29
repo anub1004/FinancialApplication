@@ -12,5 +12,6 @@ namespace FinancialApplication.Application.DTOs
         public string RefreshToken { get; set; }
         public DateTime ExpiresAt { get; set; }
         public int ExpiresIn { get; set; }
+        public string Role { get; set; }
     }
 }

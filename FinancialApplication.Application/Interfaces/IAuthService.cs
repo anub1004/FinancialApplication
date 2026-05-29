@@ -1,6 +1,7 @@
 using FinancialApp.Infrastructure.DTOs;
 using FinancialApplication.Application.DTOs;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace FinancialApp.Infrastructure.Interfaces
@@ -19,6 +20,10 @@ namespace FinancialApp.Infrastructure.Interfaces
 
         Task<bool> ValidateRefreshTokenAsync(Guid userId, string refreshToken);
 
-       Task <bool> Logout(Guid userId,string token);
+        Task<bool> _Logout(Guid userId, string token);
+
+        Task<AuthDto> CheckAuth(Guid userId, string token);
+
+        ClaimsPrincipal ValidateToken(string token);
     }
 }

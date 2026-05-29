@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace FinancialApplication.Application.DTOs
 {
-    public class LogoutRequestDto
+    public class AuthDto
     {
-        public string Token { get; set; } = string.Empty;
+        public Guid UserId { get; set; }
+        public string user { get; set; }
+        public string role { get; set; }
     }
 }
