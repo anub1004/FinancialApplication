@@ -4,7 +4,6 @@ using FinancialApplication.Application.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-
 namespace FinancialApplication.Api.Controllers.Auth
 {
     [ApiController]
@@ -84,8 +83,6 @@ namespace FinancialApplication.Api.Controllers.Auth
                 });
             }
         }
-
-
         [Authorize]
         [HttpPost("logout")]
         [ProducesResponseType(StatusCodes.Status200OK)]

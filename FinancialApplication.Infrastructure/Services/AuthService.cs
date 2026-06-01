@@ -62,7 +62,7 @@ namespace FinancialApp.Infrastructure.Services
                 throw new InvalidOperationException("Default user role is not configured.");
             }
 
-            var user = new User
+            var user = new User 
             {
                 Username = request.Username,
                 Email = request.Email,
