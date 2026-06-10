@@ -32,8 +32,6 @@ namespace FinancialApplication.Api.Controllers.Auth
                 return BadRequest(ex.Message);
             }
         }
-        
-
         [HttpPost("login")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
@@ -120,9 +118,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                         message = "Invalid user ID format in token.",
                         debugInfo = $"Received: {userIdClaim}"
                     });
-                }
-
-              
+                }    
                 if (string.IsNullOrWhiteSpace(request?.Token))
                 {
                     return BadRequest(new 
@@ -130,9 +126,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                         message = "Refresh token is required in request body.",
                         debugInfo = $"Request.Token is: {(request?.Token ?? "null")}"
                     });
-                }
-
-             
+                }  
                 var result = await _authService._Logout(userId, request.Token);
                 if (!result)
                 {

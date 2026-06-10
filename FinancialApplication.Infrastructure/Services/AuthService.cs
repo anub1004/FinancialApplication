@@ -29,12 +29,13 @@ namespace FinancialApp.Infrastructure.Services
         private readonly RefreshTokenGenerator _refreshTokenGenerator;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IConfiguration _configuration;
-
+        private readonly TimeSpan _tokenLifetime;
         public AuthService(
             AppDbContext context,
             IJwtTokenGenerator tokenGenerator,
             RefreshTokenGenerator refreshTokenGenerator,
             IPasswordHasher passwordHasher,
+
             IConfiguration configuration)
         {
             _context = context;
@@ -43,7 +44,6 @@ namespace FinancialApp.Infrastructure.Services
             _passwordHasher = passwordHasher;
             _configuration = configuration;
         }
-
         public async Task<AuthenticationResultDto> RegisterAsync(RegisterUserDto request)
         {
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
@@ -60,8 +60,7 @@ namespace FinancialApp.Infrastructure.Services
             if (defaultRole == null)
             {
                 throw new InvalidOperationException("Default user role is not configured.");
-            }
-
+            }        
             var user = new User 
             {
                 Username = request.Username,
@@ -69,7 +68,7 @@ namespace FinancialApp.Infrastructure.Services
                 Password = _passwordHasher.HashPassword(request.Password),
                 RoleId = defaultRole.Id,
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow, 
                 UpdatedAt = DateTime.UtcNow
             };
 
@@ -110,9 +109,6 @@ namespace FinancialApp.Infrastructure.Services
                 user.Email,
                 user.Username,
                 user.Role.Name
-                
-                
-                
             );
         }
 
