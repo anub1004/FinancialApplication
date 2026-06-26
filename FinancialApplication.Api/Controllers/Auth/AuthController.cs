@@ -41,7 +41,7 @@ namespace FinancialApplication.Api.Controllers.Auth
             {
                 var result = await _authService.LoginAsync(request);
 
-                // Set HTTP-only cookie with access token
+               
                 Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions
                 {
                     HttpOnly = true,
@@ -50,7 +50,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                     Expires = DateTime.UtcNow.AddHours(1)
                 });
 
-                // Set HTTP-only cookie with refresh token
+             
                 var refreshTokenExpireDays = Convert.ToInt32(HttpContext.RequestServices
                     .GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()["Jwt:RefreshTokenExpireDays"] ?? "7");
                 Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
@@ -61,7 +61,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                     Expires = DateTime.UtcNow.AddDays(refreshTokenExpireDays)
                 });
 
-                // Return only access token in response body
+              
                 return Ok(new
                 {
                     isAuthenticated = true,

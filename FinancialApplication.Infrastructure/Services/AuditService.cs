@@ -37,6 +37,7 @@ namespace FinancialApp.Infrastructure.Services
 
         public Task LogLogoutAsync(Guid userId, string username)
         {
+            
             return LogActionAsync(userId, "Logout", "User", userId.ToString(), $"User {username} logged out.");
         }
 

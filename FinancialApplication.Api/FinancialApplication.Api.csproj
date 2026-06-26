@@ -22,6 +22,7 @@
     <ProjectReference Include="..\FinancialApplication.Domain\FinancialApplication.Domain.csproj" />
     <ProjectReference Include="..\FinancialApplication.Application\FinancialApplication.Application.csproj" />
     <ProjectReference Include="..\FinancialApplication.Infrastructure\FinancialApplication.Infrastructure.csproj" />
+    <ProjectReference Include="..\ScheduledService\NewsDataUpdateService.csproj" />
   </ItemGroup>
 
 </Project>

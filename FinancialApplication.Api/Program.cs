@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -9,7 +11,7 @@ using FinancialApplication.Application.Interfaces;
 using FinancialApplication.Infrastructure.Data;
 using FinancialApplication.Infrastructure.Services;
 using Microsoft.AspNetCore.CookiePolicy;
-
+using Microsoft.AspNetCore.Http;
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -32,6 +34,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 
 
+
+
+
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<RefreshTokenGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -41,6 +46,12 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient("BannerFetcher", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+});
+builder.Services.AddScoped<IBannerFetchService, BannerFetchService>();
 
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
