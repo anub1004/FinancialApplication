@@ -1,4 +1,4 @@
-﻿using FinancialApplication.Domain.Domain.Entity;
+using FinancialApplication.Domain.Domain.Entity;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -21,6 +21,8 @@ namespace FinancialApplication.Infrastructure.Data
         public DbSet<FinancialApplication.Domain.Domain.Entity.Role> Roles { get; set; }
         public DbSet<FinancialApplication.Domain.Domain.Entity.RefreshToken> RefreshTokens { get; set; }
         public DbSet<FinancialApplication.Domain.Domain.Entity.AuditLog> AuditLogs { get; set; }
+        public DbSet<FinancialApplication.Domain.Domain.Entity.FinanceNewsArticle> FinanceNewsArticles { get; set; }
+        public DbSet<FinancialApplication.Domain.Domain.Entity.TodayNewsArticle> TodayNewsArticles { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -79,6 +81,42 @@ namespace FinancialApplication.Infrastructure.Data
                       .WithMany()
                       .HasForeignKey(a => a.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // FINANCE NEWS ARTICLE CONFIG
+            modelBuilder.Entity<FinanceNewsArticle>(entity =>
+            {
+                entity.HasKey(n => n.Id);
+
+                entity.Property(n => n.JsonData)
+                      .IsRequired()
+                      .HasColumnType("nvarchar(max)");
+
+                entity.Property(n => n.ArticleCount)
+                      .HasDefaultValue(0);
+
+                entity.Property(n => n.CreatedAt)
+                      .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.HasIndex(n => n.CreatedAt);
+            });
+
+            // TODAY NEWS ARTICLE CONFIG
+            modelBuilder.Entity<TodayNewsArticle>(entity =>
+            {
+                entity.HasKey(n => n.Id);
+
+                entity.Property(n => n.JsonData)
+                      .IsRequired()
+                      .HasColumnType("nvarchar(max)");
+
+                entity.Property(n => n.ArticleCount)
+                      .HasDefaultValue(0);
+
+                entity.Property(n => n.CreatedAt)
+                      .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.HasIndex(n => n.CreatedAt);
             });
 
         }

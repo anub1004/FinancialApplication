@@ -32,11 +32,6 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-
-
-
-
-
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<RefreshTokenGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -52,6 +47,15 @@ builder.Services.AddHttpClient("BannerFetcher", client =>
     client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
 });
 builder.Services.AddScoped<IBannerFetchService, BannerFetchService>();
+
+// ── News Processing Service ──────────────────────────────────────────────
+builder.Services.AddHttpClient("NewsScraper", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.DefaultRequestHeaders.Add("User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+});
+builder.Services.AddScoped<INewsProcessingService, NewsProcessingService>();
 
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {

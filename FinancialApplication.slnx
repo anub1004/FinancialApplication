@@ -1,8 +1,8 @@
 <Solution>
-  <Project Path="../../../../../../source/repos/FinancialApplication/FinancialApplication.Api/FinancialApplication.Api.csproj" />
-  <Project Path="../../../../../../source/repos/FinancialApplication/FinancialApplication.Application/FinancialApplication.Application.csproj" />
-  <Project Path="../../../../../../source/repos/FinancialApplication/FinancialApplication.Domain/FinancialApplication.Domain.csproj" />
-  <Project Path="../../../../../../source/repos/FinancialApplication/FinancialApplication.Infrastructure/FinancialApplication.Infrastructure.csproj" />
-  <Project Path="../../../../../../source/repos/FinancialApplication/FinancialApplication.Tests/FinancialApplication.Tests.csproj" />
-  <Project Path="../../../../../../source/repos/FinancialApplication/ScheduledService/NewsDataUpdateService.csproj" />
+  <Project Path="FinancialApplication.Api/FinancialApplication.Api.csproj" />
+  <Project Path="FinancialApplication.Application/FinancialApplication.Application.csproj" />
+  <Project Path="FinancialApplication.Domain/FinancialApplication.Domain.csproj" />
+  <Project Path="FinancialApplication.Infrastructure/FinancialApplication.Infrastructure.csproj" />
+  <Project Path="FinancialApplication.Tests/FinancialApplication.Tests.csproj" />
+  <Project Path="NewsDataUpdateService/NewsDataUpdateService.csproj" Id="46e481ef-fe9e-4fff-8b8b-48afd21d41ff" />
 </Solution>

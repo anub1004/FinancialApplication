@@ -7,17 +7,17 @@ namespace FinancialApplication.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class FinanceNewsController : ControllerBase
+    public class TodayNewsController : ControllerBase
     {
         private readonly AppDbContext _dbContext;
 
-        public FinanceNewsController(AppDbContext dbContext)
+        public TodayNewsController(AppDbContext dbContext)
         {
             _dbContext = dbContext;
         }
 
         /// <summary>
-        /// Returns processed finance news articles from the database.
+        /// Returns processed today's news articles from the database.
         /// Reads the single DB record containing all articles as a JSON array,
         /// then applies search, sorting (images first), and pagination in-memory.
         /// Supports optional pagination via 'page' and 'pageSize' query parameters.
@@ -29,7 +29,7 @@ namespace FinancialApplication.Api.Controllers
             [FromQuery] string? search = null)
         {
             // Read the single record containing all articles as a JSON array
-            var record = await _dbContext.FinanceNewsArticles
+            var record = await _dbContext.TodayNewsArticles
                 .OrderByDescending(n => n.CreatedAt)
                 .FirstOrDefaultAsync();
 
