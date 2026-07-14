@@ -478,7 +478,7 @@ Generates JWT tokens with:
 
 
 ┌──────────────────────────────────────────────┐
-│                 Role                          │
+│                 Role                         │
 │ ┌────────────────────────────────────────┐  │
 │ │ Id (int) [PK]                          │  │
 │ │ Name (unique: Admin/User/Manager/etc.) │  │
@@ -635,42 +635,42 @@ Generates JWT tokens with:
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│          ACCESS PROTECTED ENDPOINT                          │
-│                                                             │
+│          ACCESS PROTECTED ENDPOINT                         │
+│                                                            │
 │  GET /api/FinanceNews                                      │
-│  Header: Authorization: Bearer <access-jwt>               │
-│                          ↓                                  │
-│  ┌──────────────────────────────────────────┐             │
-│  │  ASP.NET Core Authentication Middleware  │             │
-│  │  - Extract JWT from Authorization header│             │
-│  │  - Validate signature                    │             │
-│  │  - Validate claims (iss, aud, exp)      │             │
-│  │  - Create ClaimsPrincipal                │             │
-│  │  - Attach to HttpContext.User            │             │
-│  └──────────────────────────────────────────┘             │
+│  Header: Authorization: Bearer <access-jwt>                │
+│                          ↓                                 │
+│  ┌──────────────────────────────────────────┐              │
+│  │  ASP.NET Core Authentication Middleware  │              │
+│  │  - Extract JWT from Authorization header │              │
+│  │  - Validate signature                    │              │
+│  │  - Validate claims (iss, aud, exp)       │              │
+│  │  - Create ClaimsPrincipal                │              │
+│  │  - Attach to HttpContext.User            │              │
+│  └──────────────────────────────────────────┘              │
 │                          ↓ (If valid)                      │
-│  ┌──────────────────────────────────────────┐             │
-│  │  FinanceNewsController.GetNews()         │             │
-│  │  [Authorize] attribute verified           │             │
-│  │  - Query FinanceNewsArticles from DB     │             │
-│  │  - Parse JSON data                       │             │
-│  │  - Apply filters (search)                │             │
-│  │  - Sort articles (images first)          │             │
-│  │  - Paginate results                      │             │
-│  └──────────────────────────────────────────┘             │
-│                          ↓                                  │
+│  ┌──────────────────────────────────────────┐              │
+│  │  FinanceNewsController.GetNews()         │              │
+│  │  [Authorize] attribute verified          │              │
+│  │  - Query FinanceNewsArticles from DB     │              │
+│  │  - Parse JSON data                       │              │
+│  │  - Apply filters (search)                │              │
+│  │  - Sort articles (images first)          │              │
+│  │  - Paginate results                      │              │
+│  └──────────────────────────────────────────┘              │
+│                          ↓                                 │
 │           RESPONSE: 200 OK                                 │
 │           {                                                │
-│             "articleCount": 150,                          │
-│             "totalItems": 150,                            │
-│             "totalPages": 3,                              │
-│             "pageNumber": 1,                              │
-│             "pageSize": 50,                               │
-│             "items": [ { article objects } ]             │
+│             "articleCount": 150,                           │
+│             "totalItems": 150,                             │
+│             "totalPages": 3,                               │
+│             "pageNumber": 1,                               │
+│             "pageSize": 50,                                │
+│             "items": [ { article objects } ]               │
 │           }                                                │
-│                                                             │
+│                                                            │
 │           OR 401 Unauthorized (if JWT invalid)             │
-│                                                             │
+│                                                            │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -689,11 +689,11 @@ Generates JWT tokens with:
 │  │  - NewsConfigApi2:ApiUrl                │                  │
 │  │  - MaxConcurrentScrapes: 10             │                  │
 │  └────────────────────────────────────────┘                  │
-│           ↓                                                    │
-│  ┌────────────────────────────────────────┐                  │
-│  │  INewsProcessingService.FetchNewsAsync │                  │
+│           ↓                                                   │
+│  ┌────────────────────────────────────────┐                   │
+│  │  INewsProcessingService.FetchNewsAsync │                   │
 │  │           ↓                             │                  │
-│  │  1. HttpClient.GetAsync(apiUrl)        │                  │
+│  │  1. HttpClient.GetAsync(apiUrl)        │                   │
 │  │     - Read external news API response   │                  │
 │  │     - Parse JSON to articles array      │                  │
 │  │           ↓                             │                  │
@@ -727,7 +727,7 @@ Generates JWT tokens with:
 │  │  - Paginate (page, pageSize params)    │                  │
 │  │  - Return paginated results            │                  │
 │  └────────────────────────────────────────┘                  │
-│                                                                │
+│                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
 

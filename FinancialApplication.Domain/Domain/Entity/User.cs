@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -39,6 +39,12 @@ namespace FinancialApplication.Domain.Domain.Entity
 
         [Required]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        [MaxLength(100)]
+        public string? GoogleId { get; set; }
+
+        [MaxLength(500)]
+        public string? ProfilePicture { get; set; }
 
         // Navigation properties
         [ForeignKey("RoleId")]

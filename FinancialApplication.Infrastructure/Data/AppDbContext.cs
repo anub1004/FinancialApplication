@@ -56,6 +56,10 @@ namespace FinancialApplication.Infrastructure.Data
                 entity.HasIndex(u => u.Email).IsUnique(); // important
                 entity.HasIndex(u => u.Username).IsUnique();
 
+                entity.HasIndex(u => u.GoogleId)
+                      .IsUnique()
+                      .HasFilter("[GoogleId] IS NOT NULL");
+
                 entity.HasOne(u => u.Role)
                       .WithMany(r => r.Users)
                       .HasForeignKey(u => u.RoleId)

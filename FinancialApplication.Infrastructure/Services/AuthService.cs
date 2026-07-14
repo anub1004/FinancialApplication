@@ -1,4 +1,4 @@
-﻿using Azure.Core;
+using Azure.Core;
 using FinancialApp.Application.DTOs;
 using FinancialApp.Infrastructure.DTOs;
 using FinancialApp.Infrastructure.Interfaces;
@@ -10,6 +10,7 @@ using FinancialApplication.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -29,20 +30,22 @@ namespace FinancialApp.Infrastructure.Services
         private readonly RefreshTokenGenerator _refreshTokenGenerator;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IConfiguration _configuration;
-        private readonly TimeSpan _tokenLifetime;
+        private readonly IHttpClientFactory _httpClientFactory;
+
         public AuthService(
             AppDbContext context,
             IJwtTokenGenerator tokenGenerator,
             RefreshTokenGenerator refreshTokenGenerator,
             IPasswordHasher passwordHasher,
-
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IHttpClientFactory httpClientFactory)
         {
             _context = context;
             _tokenGenerator = tokenGenerator;
             _refreshTokenGenerator = refreshTokenGenerator;
             _passwordHasher = passwordHasher;
             _configuration = configuration;
+            _httpClientFactory = httpClientFactory;
         }
         public async Task<AuthenticationResultDto> RegisterAsync(RegisterUserDto request)
         {
@@ -66,7 +69,7 @@ namespace FinancialApp.Infrastructure.Services
                 Username = request.Username,
                 Email = request.Email,
                 Password = _passwordHasher.HashPassword(request.Password),
-                RoleId = defaultRole.Id,
+                RoleId = defaultRole.Id, 
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow, 
                 UpdatedAt = DateTime.UtcNow
@@ -244,6 +247,82 @@ namespace FinancialApp.Infrastructure.Services
             {
                 return null;
             }
+        }
+
+        public async Task<AuthenticationResultDto> GoogleLoginAsync(string idToken)
+        {
+            // Step 1: Verify the token with Google
+            var client = _httpClientFactory.CreateClient("GoogleAuth");
+            var response = await client.GetAsync($"tokeninfo?id_token={idToken}");
+
+            if (!response.IsSuccessStatusCode)
+                throw new UnauthorizedAccessException("Invalid Google token.");
+
+            var json = await response.Content.ReadAsStringAsync();
+            var googleUser = JsonSerializer.Deserialize<JsonElement>(json);
+
+            // Step 2: Validate the audience (must match our Client ID)
+            var expectedClientId = _configuration["Google:ClientId"];
+            var audience = googleUser.GetProperty("aud").GetString();
+
+            if (audience != expectedClientId)
+                throw new UnauthorizedAccessException("Google token was not issued for this app.");
+
+            // Step 3: Extract user info from Google's response
+            var googleId = googleUser.GetProperty("sub").GetString()!;
+            var email = googleUser.GetProperty("email").GetString()!;
+            var name = googleUser.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? email.Split('@')[0] : email.Split('@')[0];
+            var picture = googleUser.TryGetProperty("picture", out var picProp) ? picProp.GetString() : null;
+
+            // Step 4: Find or create the user
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.GoogleId == googleId);
+
+            if (user == null)
+            {
+                // Check if a user with this email already exists (registered normally)
+                user = await _context.Users
+                    .Include(u => u.Role)
+                    .FirstOrDefaultAsync(u => u.Email == email);
+
+                if (user != null)
+                {
+                    // Link existing account to Google
+                    user.GoogleId = googleId;
+                    user.ProfilePicture = picture;
+                    user.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    // Create a brand-new user
+                    var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User" && r.IsActive)
+                        ?? throw new InvalidOperationException("Default user role is not configured.");
+
+                    user = new User
+                    {
+                        Username = name,
+                        Email = email,
+                        Password = _passwordHasher.HashPassword(Guid.NewGuid().ToString()),
+                        RoleId = defaultRole.Id,
+                        GoogleId = googleId,
+                        ProfilePicture = picture,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _context.Users.Add(user);
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            if (!user.IsActive)
+                throw new UnauthorizedAccessException("Account is deactivated.");
+
+            // Step 5: Generate JWT (same as normal login)
+            return await AuthenticateAsync(user.Id, user.Email, user.Username, user.Role?.Name ?? "User");
         }
     }
 }

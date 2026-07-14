@@ -1,9 +1,10 @@
-﻿using FinancialApp.Infrastructure.DTOs;
+using FinancialApp.Infrastructure.DTOs;
 using FinancialApp.Infrastructure.Interfaces;
 using FinancialApplication.Application.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+
 namespace FinancialApplication.Api.Controllers.Auth
 {
     [ApiController]
@@ -46,7 +47,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                 {
                     HttpOnly = true,
                     Secure = true,
-                    SameSite = SameSiteMode.Strict,
+                    SameSite = SameSiteMode.None,
                     Expires = DateTime.UtcNow.AddHours(1)
                 });
 
@@ -57,7 +58,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                 {
                     HttpOnly = true,
                     Secure = true,
-                    SameSite = SameSiteMode.Strict,
+                    SameSite = SameSiteMode.None,
                     Expires = DateTime.UtcNow.AddDays(refreshTokenExpireDays)
                 });
 
@@ -81,6 +82,53 @@ namespace FinancialApplication.Api.Controllers.Auth
                 });
             }
         }
+
+        [HttpPost("google-login")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto request)
+        {
+            try
+            {
+                var result = await _authService.GoogleLoginAsync(request.IdToken);
+
+                Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = DateTime.UtcNow.AddHours(1)
+                });
+
+                var refreshTokenExpireDays = Convert.ToInt32(HttpContext.RequestServices
+                    .GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()["Jwt:RefreshTokenExpireDays"] ?? "7");
+                Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = DateTime.UtcNow.AddDays(refreshTokenExpireDays)
+                });
+                return Ok(new
+                {
+                    isAuthenticated = true,
+                    token = result.AccessToken,
+                    refreshtoken = result.RefreshToken,
+                    expiresIn = result.ExpiresIn,
+                    role = result.Role,
+                    message = "Google login successful"
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { isAuthenticated = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { isAuthenticated = false, message = ex.Message });
+            }
+        }
+
         [Authorize]
         [HttpPost("logout")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -136,20 +184,18 @@ namespace FinancialApplication.Api.Controllers.Auth
                         debugInfo = $"UserId: {userId}, Token exists in DB: false"
                     });
                 }
-
-               
                 Response.Cookies.Delete("authToken", new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = true,
-                    SameSite = SameSiteMode.Strict
+                    SameSite = SameSiteMode.None
                 });
 
                 Response.Cookies.Delete("refreshToken", new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = true,
-                    SameSite = SameSiteMode.Strict
+                    SameSite = SameSiteMode.None
                 });
 
                 return Ok(new 

@@ -25,5 +25,7 @@ namespace FinancialApp.Infrastructure.Interfaces
         Task<AuthDto> CheckAuth(Guid userId, string token);
 
         ClaimsPrincipal ValidateToken(string token);
+
+        Task<AuthenticationResult> GoogleLoginAsync(string idToken);
     }
 }

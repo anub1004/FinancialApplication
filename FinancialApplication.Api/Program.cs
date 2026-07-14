@@ -48,6 +48,8 @@ builder.Services.AddHttpClient("BannerFetcher", client =>
 });
 builder.Services.AddScoped<IBannerFetchService, BannerFetchService>();
 
+
+
 // ── News Processing Service ──────────────────────────────────────────────
 builder.Services.AddHttpClient("NewsScraper", client =>
 {
