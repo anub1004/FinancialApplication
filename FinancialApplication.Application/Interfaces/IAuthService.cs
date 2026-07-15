@@ -10,7 +10,23 @@ namespace FinancialApp.Infrastructure.Interfaces
     {
         Task<AuthenticationResult> RegisterAsync(RegisterUserDto request);
 
-        Task<AuthenticationResult> LoginAsync(LoginUserDto request);
+        /// <summary>
+        /// Step 1 of login: validates credentials, returns TOTP challenge.
+        /// No JWT is issued at this step.
+        /// </summary>
+        Task<object> LoginStep1Async(LoginUserDto request);
+
+        /// <summary>
+        /// Step 1 of Google login: validates Google token, returns TOTP challenge.
+        /// No JWT is issued at this step.
+        /// </summary>
+        Task<object> GoogleLoginStep1Async(string idToken);
+
+        /// <summary>
+        /// Step 2: verifies the TOTP code and issues JWT tokens.
+        /// Used after both normal login and Google login step 1.
+        /// </summary>
+        Task<AuthenticationResult> VerifyTotpAndLoginAsync(TotpVerifyDto request);
 
         Task<AuthenticationResult> AuthenticateAsync(Guid userId, string email, string username, string role);
 
@@ -25,7 +41,5 @@ namespace FinancialApp.Infrastructure.Interfaces
         Task<AuthDto> CheckAuth(Guid userId, string token);
 
         ClaimsPrincipal ValidateToken(string token);
-
-        Task<AuthenticationResult> GoogleLoginAsync(string idToken);
     }
 }

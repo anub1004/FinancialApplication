@@ -20,6 +20,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using AuthenticationResultDto = FinancialApplication.Application.DTOs.AuthenticationResult;
+using OtpNet;
+using QRCoder;
 
 namespace FinancialApp.Infrastructure.Services
 {
@@ -47,6 +49,8 @@ namespace FinancialApp.Infrastructure.Services
             _configuration = configuration;
             _httpClientFactory = httpClientFactory;
         }
+
+        // ─── Registration ───────────────────────────────────────────────────────────
         public async Task<AuthenticationResultDto> RegisterAsync(RegisterUserDto request)
         {
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
@@ -63,7 +67,11 @@ namespace FinancialApp.Infrastructure.Services
             if (defaultRole == null)
             {
                 throw new InvalidOperationException("Default user role is not configured.");
-            }        
+            }
+
+            // Generate TOTP secret at registration time (mandatory for all users)
+            var totpSecret = GenerateTotpSecret();
+
             var user = new User 
             {
                 Username = request.Username,
@@ -71,6 +79,8 @@ namespace FinancialApp.Infrastructure.Services
                 Password = _passwordHasher.HashPassword(request.Password),
                 RoleId = defaultRole.Id, 
                 IsActive = true,
+                TotpSecret = totpSecret,
+                IsTotpConfigured = false,
                 CreatedAt = DateTime.UtcNow, 
                 UpdatedAt = DateTime.UtcNow
             };
@@ -78,10 +88,28 @@ namespace FinancialApp.Infrastructure.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return await AuthenticateAsync(user.Id, user.Email, user.Username, defaultRole.Name);
+            // Return a special result that includes TOTP setup data
+            // The user must verify TOTP before they can get a real JWT
+            var qrCodeBase64 = GenerateQrCodeBase64(user.Email, totpSecret);
+            var totpSessionToken = GenerateTotpSessionToken(user.Id);
+
+            return new AuthenticationResultDto
+            {
+                AccessToken = string.Empty,  // No JWT until TOTP verified
+                RefreshToken = string.Empty,
+                ExpiresAt = DateTime.MinValue,
+                ExpiresIn = 0,
+                Role = defaultRole.Name,
+                TotpRequired = true,
+                TotpSetupRequired = true,
+                QrCodeBase64 = qrCodeBase64,
+                ManualEntryKey = totpSecret,
+                TotpSessionToken = totpSessionToken
+            };
         }
 
-        public async Task<AuthenticationResultDto> LoginAsync(LoginUserDto request)
+        // ─── Login Step 1: Validate credentials, return TOTP challenge ──────────────
+        public async Task<object> LoginStep1Async(LoginUserDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Email))
                 throw new UnauthorizedAccessException("Email is required");
@@ -90,10 +118,8 @@ namespace FinancialApp.Infrastructure.Services
                 throw new UnauthorizedAccessException("Password is required");
 
             var user = await _context.Users
-               
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
-           
 
             if (user == null)
                 throw new UnauthorizedAccessException("Email does not exist");
@@ -107,14 +133,222 @@ namespace FinancialApp.Infrastructure.Services
             if (user.Role == null)
                 throw new UnauthorizedAccessException("User role not assigned");
 
+            // Generate a short-lived TOTP session token (not a full auth token)
+            var totpSessionToken = GenerateTotpSessionToken(user.Id);
+
+            // Check if user needs TOTP setup (first time)
+            if (string.IsNullOrEmpty(user.TotpSecret))
+            {
+                // Generate and store a new TOTP secret
+                var totpSecret = GenerateTotpSecret();
+                user.TotpSecret = totpSecret;
+                user.IsTotpConfigured = false;
+                user.UpdatedAt = DateTime.UtcNow;
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+
+                var qrCodeBase64 = GenerateQrCodeBase64(user.Email, totpSecret);
+
+                return new
+                {
+                    totpRequired = true,
+                    totpSetupRequired = true,
+                    qrCodeBase64,
+                    manualEntryKey = totpSecret,
+                    totpSessionToken,
+                    email = user.Email
+                };
+            }
+
+            // User already has TOTP configured — just ask for the code
+            if (!user.IsTotpConfigured)
+            {
+                // Secret exists but never verified — re-show QR code
+                var qrCodeBase64 = GenerateQrCodeBase64(user.Email, user.TotpSecret);
+                return new
+                {
+                    totpRequired = true,
+                    totpSetupRequired = true,
+                    qrCodeBase64,
+                    manualEntryKey = user.TotpSecret,
+                    totpSessionToken,
+                    email = user.Email
+                };
+            }
+
+            return new
+            {
+                totpRequired = true,
+                totpSetupRequired = false,
+                totpSessionToken,
+                email = user.Email
+            };
+        }
+
+        // ─── Google Login Step 1: Validate Google token, return TOTP challenge ──────
+        public async Task<object> GoogleLoginStep1Async(string idToken)
+        {
+            // Step 1: Verify the token with Google
+            var client = _httpClientFactory.CreateClient("GoogleAuth");
+            var response = await client.GetAsync($"tokeninfo?id_token={idToken}");
+
+            if (!response.IsSuccessStatusCode)
+                throw new UnauthorizedAccessException("Invalid Google token.");
+
+            var json = await response.Content.ReadAsStringAsync();
+            var googleUser = JsonSerializer.Deserialize<JsonElement>(json);
+
+            // Step 2: Validate the audience (must match our Client ID)
+            var expectedClientId = _configuration["Google:ClientId"];
+            var audience = googleUser.GetProperty("aud").GetString();
+
+            if (audience != expectedClientId)
+                throw new UnauthorizedAccessException("Google token was not issued for this app.");
+
+            // Step 3: Extract user info from Google's response
+            var googleId = googleUser.GetProperty("sub").GetString()!;
+            var email = googleUser.GetProperty("email").GetString()!;
+            var name = googleUser.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? email.Split('@')[0] : email.Split('@')[0];
+            var picture = googleUser.TryGetProperty("picture", out var picProp) ? picProp.GetString() : null;
+
+            // Step 4: Find or create the user
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.GoogleId == googleId);
+
+            if (user == null)
+            {
+                // Check if a user with this email already exists (registered normally)
+                user = await _context.Users
+                    .Include(u => u.Role)
+                    .FirstOrDefaultAsync(u => u.Email == email);
+
+                if (user != null)
+                {
+                    // Link existing account to Google
+                    user.GoogleId = googleId;
+                    user.ProfilePicture = picture;
+                    user.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    // Create a brand-new user
+                    var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User" && r.IsActive)
+                        ?? throw new InvalidOperationException("Default user role is not configured.");
+
+                    user = new User
+                    {
+                        Username = name,
+                        Email = email,
+                        Password = _passwordHasher.HashPassword(Guid.NewGuid().ToString()),
+                        RoleId = defaultRole.Id,
+                        GoogleId = googleId,
+                        ProfilePicture = picture,
+                        IsActive = true,
+                        TotpSecret = GenerateTotpSecret(),
+                        IsTotpConfigured = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _context.Users.Add(user);
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            if (!user.IsActive)
+                throw new UnauthorizedAccessException("Account is deactivated.");
+
+            // Step 5: Return TOTP challenge (instead of issuing JWT directly)
+            var totpSessionToken = GenerateTotpSessionToken(user.Id);
+
+            if (string.IsNullOrEmpty(user.TotpSecret))
+            {
+                var totpSecret = GenerateTotpSecret();
+                user.TotpSecret = totpSecret;
+                user.IsTotpConfigured = false;
+                user.UpdatedAt = DateTime.UtcNow;
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+
+                return new
+                {
+                    totpRequired = true,
+                    totpSetupRequired = true,
+                    qrCodeBase64 = GenerateQrCodeBase64(email, totpSecret),
+                    manualEntryKey = totpSecret,
+                    totpSessionToken,
+                    email
+                };
+            }
+
+            if (!user.IsTotpConfigured)
+            {
+                return new
+                {
+                    totpRequired = true,
+                    totpSetupRequired = true,
+                    qrCodeBase64 = GenerateQrCodeBase64(email, user.TotpSecret),
+                    manualEntryKey = user.TotpSecret,
+                    totpSessionToken,
+                    email
+                };
+            }
+
+            return new
+            {
+                totpRequired = true,
+                totpSetupRequired = false,
+                totpSessionToken,
+                email
+            };
+        }
+
+        // ─── Step 2: Verify TOTP code and issue real JWT tokens ─────────────────────
+        public async Task<AuthenticationResultDto> VerifyTotpAndLoginAsync(TotpVerifyDto request)
+        {
+            // Validate the TOTP session token
+            var userId = ValidateTotpSessionToken(request.TotpSessionToken);
+            if (!userId.HasValue)
+                throw new UnauthorizedAccessException("Invalid or expired TOTP session token. Please login again.");
+
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId.Value);
+
+            if (user == null)
+                throw new UnauthorizedAccessException("User not found.");
+
+            if (!user.IsActive)
+                throw new UnauthorizedAccessException("Account is deactivated.");
+
+            if (string.IsNullOrEmpty(user.TotpSecret))
+                throw new UnauthorizedAccessException("TOTP is not configured for this account. Please login again.");
+
+            // Validate the TOTP code
+            if (!ValidateTotpCode(user.TotpSecret, request.TotpCode))
+                throw new UnauthorizedAccessException("Invalid TOTP code. Please try again.");
+
+            // Mark TOTP as configured if this is the first successful verification
+            if (!user.IsTotpConfigured)
+            {
+                user.IsTotpConfigured = true;
+                user.UpdatedAt = DateTime.UtcNow;
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+            }
+
+            // Issue real JWT tokens
             return await AuthenticateAsync(
                 user.Id,
                 user.Email,
                 user.Username,
-                user.Role.Name
+                user.Role?.Name ?? "User"
             );
         }
 
+        // ─── Core authentication (JWT issuance) ────────────────────────────────────
         public async Task<AuthenticationResultDto> AuthenticateAsync(Guid userId, string email, string username, string role)
         {
             var accessToken = _tokenGenerator.GenerateAccessToken(userId, email, username, role);
@@ -249,80 +483,126 @@ namespace FinancialApp.Infrastructure.Services
             }
         }
 
-        public async Task<AuthenticationResultDto> GoogleLoginAsync(string idToken)
+        // ═══════════════════════════════════════════════════════════════════════════
+        // TOTP Private Helper Methods
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Generates a random 20-byte TOTP secret and returns it as a Base32 string.
+        /// </summary>
+        private string GenerateTotpSecret()
         {
-            // Step 1: Verify the token with Google
-            var client = _httpClientFactory.CreateClient("GoogleAuth");
-            var response = await client.GetAsync($"tokeninfo?id_token={idToken}");
+            var secretKey = KeyGeneration.GenerateRandomKey(20);
+            return Base32Encoding.ToString(secretKey);
+        }
 
-            if (!response.IsSuccessStatusCode)
-                throw new UnauthorizedAccessException("Invalid Google token.");
+        /// <summary>
+        /// Generates a QR code image (Base64-encoded PNG) for the given email and TOTP secret.
+        /// The QR code encodes an otpauth:// URI compatible with Google Authenticator, Authy, etc.
+        /// </summary>
+        private string GenerateQrCodeBase64(string email, string secret)
+        {
+            var issuer = _configuration["TwoFactor:Issuer"] ?? "FinancialApp";
+            var otpauthUri = $"otpauth://totp/{Uri.EscapeDataString(issuer)}:{Uri.EscapeDataString(email)}?secret={secret}&issuer={Uri.EscapeDataString(issuer)}&digits=6&period=30";
 
-            var json = await response.Content.ReadAsStringAsync();
-            var googleUser = JsonSerializer.Deserialize<JsonElement>(json);
+            using var qrGenerator = new QRCodeGenerator();
+            using var qrCodeData = qrGenerator.CreateQrCode(otpauthUri, QRCodeGenerator.ECCLevel.Q);
+            using var qrCode = new PngByteQRCode(qrCodeData);
+            var pngBytes = qrCode.GetGraphic(5);
 
-            // Step 2: Validate the audience (must match our Client ID)
-            var expectedClientId = _configuration["Google:ClientId"];
-            var audience = googleUser.GetProperty("aud").GetString();
+            return $"data:image/png;base64,{Convert.ToBase64String(pngBytes)}";
+        }
 
-            if (audience != expectedClientId)
-                throw new UnauthorizedAccessException("Google token was not issued for this app.");
-
-            // Step 3: Extract user info from Google's response
-            var googleId = googleUser.GetProperty("sub").GetString()!;
-            var email = googleUser.GetProperty("email").GetString()!;
-            var name = googleUser.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? email.Split('@')[0] : email.Split('@')[0];
-            var picture = googleUser.TryGetProperty("picture", out var picProp) ? picProp.GetString() : null;
-
-            // Step 4: Find or create the user
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.GoogleId == googleId);
-
-            if (user == null)
+        /// <summary>
+        /// Validates a 6-digit TOTP code against the stored secret.
+        /// Allows ±1 time step window (30 seconds each) to account for clock drift.
+        /// </summary>
+        private bool ValidateTotpCode(string secret, string code)
+        {
+            try
             {
-                // Check if a user with this email already exists (registered normally)
-                user = await _context.Users
-                    .Include(u => u.Role)
-                    .FirstOrDefaultAsync(u => u.Email == email);
-
-                if (user != null)
-                {
-                    // Link existing account to Google
-                    user.GoogleId = googleId;
-                    user.ProfilePicture = picture;
-                    user.UpdatedAt = DateTime.UtcNow;
-                }
-                else
-                {
-                    // Create a brand-new user
-                    var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User" && r.IsActive)
-                        ?? throw new InvalidOperationException("Default user role is not configured.");
-
-                    user = new User
-                    {
-                        Username = name,
-                        Email = email,
-                        Password = _passwordHasher.HashPassword(Guid.NewGuid().ToString()),
-                        RoleId = defaultRole.Id,
-                        GoogleId = googleId,
-                        ProfilePicture = picture,
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
-
-                    _context.Users.Add(user);
-                }
-
-                await _context.SaveChangesAsync();
+                var secretBytes = Base32Encoding.ToBytes(secret);
+                var totp = new Totp(secretBytes, step: 30, totpSize: 6);
+                return totp.VerifyTotp(code, out _, new VerificationWindow(previous: 1, future: 1));
             }
+            catch
+            {
+                return false;
+            }
+        }
 
-            if (!user.IsActive)
-                throw new UnauthorizedAccessException("Account is deactivated.");
+        /// <summary>
+        /// Generates a short-lived (5-minute) JWT token that only authorizes TOTP verification.
+        /// This is NOT a full auth token — it contains a special "purpose" claim.
+        /// </summary>
+        private string GenerateTotpSessionToken(Guid userId)
+        {
+            var jwtSettings = _configuration.GetSection("Jwt");
+            var secretKey = jwtSettings["Key"];
+            var key = Encoding.ASCII.GetBytes(secretKey!);
 
-            // Step 5: Generate JWT (same as normal login)
-            return await AuthenticateAsync(user.Id, user.Email, user.Username, user.Role?.Name ?? "User");
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim("purpose", "totp-verification")
+            };
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.UtcNow.AddMinutes(5),
+                Issuer = jwtSettings["Issuer"],
+                Audience = jwtSettings["Audience"],
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(key),
+                    SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
+
+        /// <summary>
+        /// Validates a TOTP session token and extracts the userId.
+        /// Returns null if the token is invalid, expired, or not a TOTP session token.
+        /// </summary>
+        private Guid? ValidateTotpSessionToken(string token)
+        {
+            try
+            {
+                var jwtSettings = _configuration.GetSection("Jwt");
+                var secretKey = jwtSettings["Key"];
+                var key = Encoding.ASCII.GetBytes(secretKey!);
+
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidateAudience = true,
+                    ValidAudience = jwtSettings["Audience"],
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromSeconds(30)
+                }, out SecurityToken validatedToken);
+
+                // Verify this is a TOTP session token, not a regular auth token
+                var purposeClaim = principal.FindFirst("purpose")?.Value;
+                if (purposeClaim != "totp-verification")
+                    return null;
+
+                var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userIdClaim, out var userId))
+                    return userId;
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

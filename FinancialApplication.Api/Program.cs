@@ -48,6 +48,12 @@ builder.Services.AddHttpClient("BannerFetcher", client =>
 });
 builder.Services.AddScoped<IBannerFetchService, BannerFetchService>();
 
+builder.Services.AddHttpClient("GoogleAuth", client =>
+{
+    client.BaseAddress = new Uri("https://oauth2.googleapis.com/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
 
 
 // ── News Processing Service ──────────────────────────────────────────────

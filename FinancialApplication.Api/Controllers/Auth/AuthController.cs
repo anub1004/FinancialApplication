@@ -18,6 +18,9 @@ namespace FinancialApplication.Api.Controllers.Auth
             _authService = authService;
         }
 
+        /// <summary>
+        /// Register a new user. Returns TOTP setup data (QR code) — no JWT issued until TOTP verified.
+        /// </summary>
         [HttpPost("register")]
         [ProducesResponseType(typeof(AuthenticationResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
@@ -33,6 +36,12 @@ namespace FinancialApplication.Api.Controllers.Auth
                 return BadRequest(ex.Message);
             }
         }
+
+        /// <summary>
+        /// Login Step 1: Validates credentials and returns a TOTP challenge.
+        /// If the user hasn't set up TOTP yet, a QR code is included in the response.
+        /// No JWT tokens are issued at this step.
+        /// </summary>
         [HttpPost("login")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
@@ -40,38 +49,8 @@ namespace FinancialApplication.Api.Controllers.Auth
         {
             try
             {
-                var result = await _authService.LoginAsync(request);
-
-               
-                Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = DateTime.UtcNow.AddHours(1)
-                });
-
-             
-                var refreshTokenExpireDays = Convert.ToInt32(HttpContext.RequestServices
-                    .GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()["Jwt:RefreshTokenExpireDays"] ?? "7");
-                Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = DateTime.UtcNow.AddDays(refreshTokenExpireDays)
-                });
-
-              
-                return Ok(new
-                {
-                    isAuthenticated = true,
-                    token = result.AccessToken,
-                    refreshtoken=result.RefreshToken,
-                    expiresIn = result.ExpiresIn,
-                    role = result.Role,
-                    message = "Login successful"
-                });
+                var result = await _authService.LoginStep1Async(request);
+                return Ok(result);
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -83,15 +62,20 @@ namespace FinancialApplication.Api.Controllers.Auth
             }
         }
 
-        [HttpPost("google-login")]
+        /// <summary>
+        /// Login Step 2: Verifies the TOTP code and issues JWT tokens.
+        /// This endpoint is called after login or google-login returns a TOTP challenge.
+        /// </summary>
+        [HttpPost("verify-totp")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto request)
+        public async Task<IActionResult> VerifyTotp([FromBody] TotpVerifyDto request)
         {
             try
             {
-                var result = await _authService.GoogleLoginAsync(request.IdToken);
+                var result = await _authService.VerifyTotpAndLoginAsync(request);
 
+                // Set auth cookies (same as the previous login flow)
                 Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions
                 {
                     HttpOnly = true,
@@ -109,6 +93,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                     SameSite = SameSiteMode.None,
                     Expires = DateTime.UtcNow.AddDays(refreshTokenExpireDays)
                 });
+
                 return Ok(new
                 {
                     isAuthenticated = true,
@@ -116,8 +101,32 @@ namespace FinancialApplication.Api.Controllers.Auth
                     refreshtoken = result.RefreshToken,
                     expiresIn = result.ExpiresIn,
                     role = result.Role,
-                    message = "Google login successful"
+                    message = "Login successful"
                 });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new
+                {
+                    isAuthenticated = false,
+                    message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Google Login Step 1: Validates Google token and returns a TOTP challenge.
+        /// No JWT tokens are issued at this step.
+        /// </summary>
+        [HttpPost("google-login")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto request)
+        {
+            try
+            {
+                var result = await _authService.GoogleLoginStep1Async(request.IdToken);
+                return Ok(result);
             }
             catch (UnauthorizedAccessException ex)
             {

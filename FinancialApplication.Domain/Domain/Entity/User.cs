@@ -46,6 +46,11 @@ namespace FinancialApplication.Domain.Domain.Entity
         [MaxLength(500)]
         public string? ProfilePicture { get; set; }
 
+        [MaxLength(64)]
+        public string? TotpSecret { get; set; }
+
+        public bool IsTotpConfigured { get; set; } = false;
+
         // Navigation properties
         [ForeignKey("RoleId")]
         public virtual Role Role { get; set; } = null!;
