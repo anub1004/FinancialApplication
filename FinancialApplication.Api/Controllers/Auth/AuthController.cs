@@ -101,6 +101,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                     refreshtoken = result.RefreshToken,
                     expiresIn = result.ExpiresIn,
                     role = result.Role,
+                    recoveryCodes = result.RecoveryCodes,
                     message = "Login successful"
                 });
             }
@@ -111,6 +112,66 @@ namespace FinancialApplication.Api.Controllers.Auth
                     isAuthenticated = false,
                     message = ex.Message
                 });
+            }
+        }
+
+        [HttpPost("recovery-login")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> RecoveryLogin([FromBody] RecoveryLoginDto request)
+        {
+            try
+            {
+                var result = await _authService.LoginWithRecoveryCodeAsync(request);
+                Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions
+                {
+                    HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Expires = DateTime.UtcNow.AddHours(1)
+                });
+                Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
+                {
+                    HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Expires = DateTime.UtcNow.AddDays(7)
+                });
+                return Ok(new { isAuthenticated = true, token = result.AccessToken, refreshtoken = result.RefreshToken, expiresIn = result.ExpiresIn, role = result.Role, message = "Login successful" });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { isAuthenticated = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost("request-email-recovery")]
+        public async Task<IActionResult> RequestEmailLoginCode([FromBody] EmailLoginRequestDto request)
+        {
+            try { await _authService.RequestEmailLoginCodeAsync(request); }
+            catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message }); }
+            catch (System.Net.Mail.SmtpException) { return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Email service is temporarily unavailable." }); }
+            return Ok(new { message = "If the account exists, a sign-in code has been sent." });
+        }
+
+        [HttpPost("email-verification-login")]
+        public async Task<IActionResult> EmailVerificationLogin([FromBody] EmailLoginVerifyDto request)
+        {
+            try
+            {
+                var result = await _authService.LoginWithEmailCodeAsync(request);
+                Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Expires = DateTime.UtcNow.AddHours(1) });
+                Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Expires = DateTime.UtcNow.AddDays(7) });
+                return Ok(new { isAuthenticated = true, token = result.AccessToken, refreshtoken = result.RefreshToken, expiresIn = result.ExpiresIn, role = result.Role });
+            }
+            catch (UnauthorizedAccessException ex) { return Unauthorized(new { isAuthenticated = false, message = ex.Message }); }
+        }
+
+        [HttpPost("verify-signup-email-otp")]
+        public async Task<IActionResult> VerifySignupEmailOtp([FromBody] EmailLoginVerifyDto request)
+        {
+            try
+            {
+                var result = await _authService.VerifySignupEmailOtpAsync(request);
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
             }
         }
 
@@ -251,5 +312,33 @@ namespace FinancialApplication.Api.Controllers.Auth
                  return Ok(new { isAuthenticated = false });
              }
          }
+
+          [Authorize]
+          [HttpPost("verify-recovery-code-for-qr")]
+          [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+          [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
+          [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+          public async Task<IActionResult> VerifyRecoveryCodeForQr([FromBody] VerifyRecoveryCodeDto request)
+          {
+              try
+              {
+                  var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                  if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                  {
+                      return Unauthorized(new { message = "User ID claim not found or invalid in token." });
+                  }
+
+                  var result = await _authService.GetQrCodeWithRecoveryCodeAsync(userId, request.RecoveryCode);
+                  return Ok(result);
+              }
+              catch (UnauthorizedAccessException ex)
+              {
+                  return Unauthorized(new { message = ex.Message });
+              }
+              catch (Exception ex)
+              {
+                  return BadRequest(new { message = ex.Message });
+              }
+          }
     }
 }

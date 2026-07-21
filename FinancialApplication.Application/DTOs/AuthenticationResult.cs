@@ -42,5 +42,14 @@ namespace FinancialApplication.Application.DTOs
         /// Only populated when TotpRequired is true.
         /// </summary>
         public string? TotpSessionToken { get; set; }
+
+        /// <summary>One-time recovery codes, returned only immediately after initial 2FA setup.</summary>
+        public IReadOnlyList<string>? RecoveryCodes { get; set; }
+
+        /// <summary>If true, user must verify email code first before setting up TOTP.</summary>
+        public bool EmailOtpRequired { get; set; } = false;
+
+        /// <summary>The registered email address.</summary>
+        public string? Email { get; set; }
     }
 }

@@ -20,6 +20,8 @@ namespace FinancialApplication.Infrastructure.Data
         public DbSet<FinancialApplication.Domain.Domain.Entity.Goal> Goals { get; set; }
         public DbSet<FinancialApplication.Domain.Domain.Entity.Role> Roles { get; set; }
         public DbSet<FinancialApplication.Domain.Domain.Entity.RefreshToken> RefreshTokens { get; set; }
+        public DbSet<RecoveryCode> RecoveryCodes { get; set; }
+        public DbSet<EmailLoginCode> EmailLoginCodes { get; set; }
         public DbSet<FinancialApplication.Domain.Domain.Entity.AuditLog> AuditLogs { get; set; }
         public DbSet<FinancialApplication.Domain.Domain.Entity.FinanceNewsArticle> FinanceNewsArticles { get; set; }
         public DbSet<FinancialApplication.Domain.Domain.Entity.TodayNewsArticle> TodayNewsArticles { get; set; }
@@ -75,6 +77,23 @@ namespace FinancialApplication.Infrastructure.Data
                       .WithMany()
                       .HasForeignKey(r => r.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<RecoveryCode>(entity =>
+            {
+                entity.HasKey(r => r.Id);
+                entity.HasIndex(r => new { r.UserId, r.CodeHash }).IsUnique();
+                entity.HasOne(r => r.User)
+                      .WithMany(u => u.RecoveryCodes)
+                      .HasForeignKey(r => r.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<EmailLoginCode>(entity =>
+            {
+                entity.HasKey(c => c.Id);
+                entity.HasIndex(c => new { c.UserId, c.CodeHash });
+                entity.HasOne(c => c.User).WithMany(u => u.EmailLoginCodes).HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<AuditLog>(entity =>

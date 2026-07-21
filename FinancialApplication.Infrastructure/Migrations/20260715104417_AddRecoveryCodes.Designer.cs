@@ -4,6 +4,7 @@ using FinancialApplication.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinancialApplication.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260715104417_AddRecoveryCodes")]
+    partial class AddRecoveryCodes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,33 +57,6 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("AuditLogs");
-                });
-
-            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.EmailLoginCode", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("CodeHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "CodeHash");
-
-                    b.ToTable("EmailLoginCodes");
                 });
 
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.FinanceNewsArticle", b =>
@@ -442,17 +418,6 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.EmailLoginCode", b =>
-                {
-                    b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
-                        .WithMany("EmailLoginCodes")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Goal", b =>
                 {
                     b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
@@ -524,8 +489,6 @@ namespace FinancialApplication.Infrastructure.Migrations
 
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.User", b =>
                 {
-                    b.Navigation("EmailLoginCodes");
-
                     b.Navigation("Goals");
 
                     b.Navigation("Investments");

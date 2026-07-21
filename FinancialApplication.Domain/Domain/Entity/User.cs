@@ -51,6 +51,9 @@ namespace FinancialApplication.Domain.Domain.Entity
 
         public bool IsTotpConfigured { get; set; } = false;
 
+        public virtual ICollection<RecoveryCode> RecoveryCodes { get; set; } = new List<RecoveryCode>();
+        public virtual ICollection<EmailLoginCode> EmailLoginCodes { get; set; } = new List<EmailLoginCode>();
+
         // Navigation properties
         [ForeignKey("RoleId")]
         public virtual Role Role { get; set; } = null!;

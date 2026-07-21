@@ -28,6 +28,11 @@ namespace FinancialApp.Infrastructure.Interfaces
         /// </summary>
         Task<AuthenticationResult> VerifyTotpAndLoginAsync(TotpVerifyDto request);
 
+        Task<AuthenticationResult> LoginWithRecoveryCodeAsync(RecoveryLoginDto request);
+        Task RequestEmailLoginCodeAsync(EmailLoginRequestDto request);
+        Task<AuthenticationResult> LoginWithEmailCodeAsync(EmailLoginVerifyDto request);
+        Task<AuthenticationResult> VerifySignupEmailOtpAsync(EmailLoginVerifyDto request);
+
         Task<AuthenticationResult> AuthenticateAsync(Guid userId, string email, string username, string role);
 
         Task<string> RefreshAccessTokenAsync(string refreshToken);
@@ -41,5 +46,7 @@ namespace FinancialApp.Infrastructure.Interfaces
         Task<AuthDto> CheckAuth(Guid userId, string token);
 
         ClaimsPrincipal ValidateToken(string token);
+
+        Task<object> GetQrCodeWithRecoveryCodeAsync(Guid userId, string recoveryCode);
     }
 }
