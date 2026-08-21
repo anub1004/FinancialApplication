@@ -61,5 +61,11 @@ namespace FinancialApplication.Domain.Domain.Entity
         public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
         public virtual ICollection<Investment> Investments { get; set; } = new List<Investment>();
         public virtual ICollection<Goal> Goals { get; set; } = new List<Goal>();
+
+        // Subscription navigation properties
+        public virtual ICollection<UserSubscription> Subscriptions { get; set; } = new List<UserSubscription>();
+        public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+        public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
+        public virtual ICollection<SubscriptionHistory> SubscriptionHistories { get; set; } = new List<SubscriptionHistory>();
     }
 }

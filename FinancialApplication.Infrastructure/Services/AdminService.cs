@@ -1,4 +1,4 @@
-﻿using FinancialApp.Infrastructure.Security;
+using FinancialApp.Infrastructure.Security;
 using FinancialApplication.Application.Interfaces;
 using FinancialApplication.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -55,17 +55,33 @@ namespace FinancialApplication.Infrastructure.Services
             {
                 throw new KeyNotFoundException($"User with ID {userId} not found.");
             }
+
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName && r.IsActive);
             if (role == null)
             {
                 throw new InvalidOperationException($"Role '{roleName}' does not exist or is inactive.");
             }
-            user.RoleId = 0; 
-            role.Name = roleName;
+
+            // Verify the user actually has the role being revoked
+            if (user.RoleId != role.Id)
+            {
+                throw new InvalidOperationException($"User '{user.Username}' does not have role '{roleName}'.");
+            }
+
+            // Prevent revoking the default "User" role (RoleId = 1) — it's the base role
+            if (role.Id == 1)
+            {
+                throw new InvalidOperationException("Cannot revoke the default 'User' role.");
+            }
+
+            // Reset to default "User" role (RoleId = 1), NOT 0 which would cause FK violation
+            user.RoleId = 1;
             user.UpdatedAt = DateTime.UtcNow;
+
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
-            return $"User '{user.Username}' role revoked successfully.";
+
+            return $"Role '{roleName}' revoked from user '{user.Username}'. User reset to default 'User' role.";
         }
         public async Task<string> DeactivateUserAsync(Guid userId)
         {

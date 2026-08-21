@@ -40,6 +40,11 @@ builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IFeatureService, FeatureService>();
+builder.Services.AddScoped<IPlanService, PlanService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IFeatureAccessResolver, FeatureAccessResolver>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient("BannerFetcher", client =>
 {
@@ -64,6 +69,10 @@ builder.Services.AddHttpClient("NewsScraper", client =>
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
 });
 builder.Services.AddScoped<INewsProcessingService, NewsProcessingService>();
+
+// ── Pre-warm news cache on startup so first request is instant ────────────
+builder.Services.AddHostedService<FinancialApplication.Api.Services.NewsCacheWarmupService>();
+
 
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
@@ -155,7 +164,14 @@ builder.Services.AddAuthorization(options =>
 });
 
 
-builder.Services.AddControllers();
+builder.Services.AddScoped<IPaymentGateway, SimulatedPaymentGateway>();
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

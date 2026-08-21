@@ -1,9 +1,13 @@
-﻿using FinancialApplication.Application.Interfaces;
+using FinancialApplication.Application.Interfaces;
+using FinancialApplication.Domain.Domain.Enums;
+using FinancialApplication.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 
@@ -16,10 +20,12 @@ namespace FinancialApp.Infrastructure.Security
     public class JwtTokenGenerator : IJwtTokenGenerator
     {
         private readonly IConfiguration _configuration;
+        private readonly AppDbContext _context;
 
-        public JwtTokenGenerator(IConfiguration configuration)
+        public JwtTokenGenerator(IConfiguration configuration, AppDbContext context)
         {
             _configuration = configuration;
+            _context = context;
         }
 
         /// <summary>
@@ -57,6 +63,9 @@ namespace FinancialApp.Infrastructure.Security
 
             // Add permission claims based on role
             AddPermissionClaims(claims, role);
+
+            // Add subscription claims (PlanId, PlanSlug, SubscriptionStatus)
+            AddSubscriptionClaims(claims, userId);
 
             var expires = DateTime.UtcNow.AddMinutes(durationMinutes);
 
@@ -169,6 +178,45 @@ namespace FinancialApp.Infrastructure.Security
                 new Claim("permission", "view_all_users"),
                 new Claim("permission", "view_audit_logs")
             });
+        }
+
+        /// <summary>
+        /// Adds subscription claims (PlanId, PlanSlug, SubscriptionStatus) to the JWT.
+        /// Queries the database synchronously during token generation — this is a single
+        /// indexed lookup on UserSubscriptions and is acceptable for the token issuance path.
+        /// </summary>
+        private void AddSubscriptionClaims(List<Claim> claims, Guid userId)
+        {
+            try
+            {
+                var subscription = _context.UserSubscriptions
+                    .Include(us => us.Plan)
+                    .Where(us => us.UserId == userId &&
+                                (us.Status == SubscriptionStatusEnum.Active ||
+                                 us.Status == SubscriptionStatusEnum.Trial))
+                    .OrderByDescending(us => us.CreatedAt)
+                    .FirstOrDefault();
+
+                if (subscription != null)
+                {
+                    claims.Add(new Claim("PlanId", subscription.PlanId.ToString()));
+                    claims.Add(new Claim("PlanSlug", subscription.Plan?.Slug ?? "unknown"));
+                    claims.Add(new Claim("SubscriptionStatus", subscription.Status.ToString()));
+                }
+                else
+                {
+                    claims.Add(new Claim("PlanId", "none"));
+                    claims.Add(new Claim("PlanSlug", "none"));
+                    claims.Add(new Claim("SubscriptionStatus", "none"));
+                }
+            }
+            catch
+            {
+                // Fail silently — subscription claims are non-critical for auth
+                claims.Add(new Claim("PlanId", "none"));
+                claims.Add(new Claim("PlanSlug", "none"));
+                claims.Add(new Claim("SubscriptionStatus", "none"));
+            }
         }
 
         /// <summary>

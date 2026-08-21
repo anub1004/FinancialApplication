@@ -1,6 +1,7 @@
 using FinancialApp.Infrastructure.DTOs;
 using FinancialApp.Infrastructure.Interfaces;
 using FinancialApplication.Application.DTOs;
+using FinancialApplication.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,10 +13,12 @@ namespace FinancialApplication.Api.Controllers.Auth
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly ISubscriptionService _subscriptionService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, ISubscriptionService subscriptionService)
         {
             _authService = authService;
+            _subscriptionService = subscriptionService;
         }
 
         /// <summary>
@@ -285,7 +288,7 @@ namespace FinancialApplication.Api.Controllers.Auth
         }
          [HttpGet("checkauth")]
          [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-         public IActionResult CheckAuth()
+         public async Task<IActionResult> CheckAuth()
          {
              try
              {
@@ -299,12 +302,67 @@ namespace FinancialApplication.Api.Controllers.Auth
                  if (claims == null)
                      return Ok(new { isAuthenticated = false });
 
+                 // Extract subscription claims from JWT (added in Phase 8)
+                 var planIdClaim = claims.FindFirst("PlanId")?.Value;
+                 var planSlugClaim = claims.FindFirst("PlanSlug")?.Value;
+                 var subscriptionStatusClaim = claims.FindFirst("SubscriptionStatus")?.Value;
+
+                 // Default values for subscription fields
+                 string? planId = null;
+                 string? planSlug = null;
+                 string? planName = null;
+                 string? subscriptionStatus = null;
+
+                 // If JWT has valid subscription claims, use them
+                 if (!string.IsNullOrEmpty(planIdClaim) && planIdClaim != "none")
+                 {
+                     planId = planIdClaim;
+                     planSlug = planSlugClaim != "none" ? planSlugClaim : null;
+                     subscriptionStatus = subscriptionStatusClaim != "none" ? subscriptionStatusClaim : null;
+
+                     // Load planName from the subscription service (lightweight DB call)
+                     var userIdStr = claims.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                     if (Guid.TryParse(userIdStr, out var userId))
+                     {
+                         var sub = await _subscriptionService.GetCurrentSubscriptionAsync(userId);
+                         if (sub != null)
+                         {
+                             planName = sub.PlanName;
+                             // Refresh from DB in case JWT claims are slightly stale
+                             planId = sub.PlanId.ToString();
+                             planSlug = sub.PlanSlug;
+                             subscriptionStatus = sub.StatusName;
+                         }
+                     }
+                 }
+                 else
+                 {
+                     // Fallback: JWT may not have subscription claims yet (token issued before Phase 8)
+                     var userIdStr = claims.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                     if (Guid.TryParse(userIdStr, out var userId))
+                     {
+                         var sub = await _subscriptionService.GetCurrentSubscriptionAsync(userId);
+                         if (sub != null)
+                         {
+                             planId = sub.PlanId.ToString();
+                             planSlug = sub.PlanSlug;
+                             planName = sub.PlanName;
+                             subscriptionStatus = sub.StatusName;
+                         }
+                     }
+                 }
+
                  return Ok(new
                  {
                      isAuthenticated = true,
                      user = claims.FindFirst(ClaimTypes.Email)?.Value,
                      userId = claims.FindFirst(ClaimTypes.NameIdentifier)?.Value,
-                     role = claims.FindFirst(ClaimTypes.Role)?.Value
+                     role = claims.FindFirst(ClaimTypes.Role)?.Value,
+                     // Subscription fields (Phase 8 — additive, backward-compatible)
+                     planId,
+                     planSlug,
+                     planName,
+                     subscriptionStatus
                  });
              }
              catch

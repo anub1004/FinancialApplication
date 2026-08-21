@@ -1,0 +1,1298 @@
+# Subscription Management System — Agile Execution Roadmap
+
+> **Source Document**: [implementation_plan.md](file:///c:/Users/samar/source/repos/FinancialApplication/Documentation/implementation_plan.md)
+> **Architecture**: .NET 8 Clean Architecture + React 18 + TypeScript + SQL Server
+> **Approach**: Fully Database-Driven Feature Access Control
+
+---
+
+## Progress Tracker
+
+| Phase | Title | Status |
+|-------|-------|--------|
+| 0 | Pre-Requisite Bug Fixes & Housekeeping | ✅ Complete |
+| 1 | Domain Entities & Enums (Subscription Core) | ✅ Complete |
+| 2 | Database Schema — DbContext, Migrations & Seed Data | ✅ Complete |
+| 3 | Application Layer — Interfaces & DTOs | ✅ Complete |
+| 4 | Infrastructure — Feature & Plan Services (Admin CRUD) | ✅ Complete |
+| 5 | Feature Access Resolver & Caching | ✅ Complete |
+| 6 | API Layer — Admin Controllers & Feature Authorization Middleware | ✅ Complete |
+| 7 | User Subscription Service & User-Facing APIs | ✅ Complete |
+| 8 | JWT Enhancement & CheckAuth Integration | ✅ Complete |
+| 9 | Frontend — SubscriptionContext, FeatureGate & Hooks | ✅ Complete |
+| 10 | Frontend — Admin Plan/Feature Management Pages | ✅ Complete |
+
+---
+
+## Phase 0 — Pre-Requisite Bug Fixes & Housekeeping
+
+### Goal
+Fix known bugs and structural issues in the existing codebase that will interfere with subscription system integration. This phase ensures a clean foundation before any new code is added.
+
+### Features to Implement
+- Fix `RevokeRoleAsync` bug (sets `RoleId = 0` instead of `1`)
+- Verify all existing entity FK relationships are correct
+- Confirm existing `AppDbContext` is ready for extension
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| [AdminService.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Infrastructure/Services/AdminService.cs) | Fix `RoleId = 0` → `RoleId = 1` in `RevokeRoleAsync` |
+
+### Backend Tasks
+1. Open [AdminService.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Infrastructure/Services/AdminService.cs)
+2. Locate `RevokeRoleAsync` method
+3. Change `user.RoleId = 0` to `user.RoleId = 1` (default User role)
+4. Add a comment explaining why RoleId=1 is the fallback
+5. Verify the `Roles` table has RoleId=1 as "User" role
+
+### Frontend Tasks
+- None
+
+### Database Changes
+- None (data-level fix only)
+
+### APIs to Create/Update
+- None
+
+### Validation Rules
+- `RoleId` must always reference a valid entry in the `Roles` table
+- `RoleId = 0` should never be set (FK violation risk)
+
+### Unit Tests
+- [ ] Test `RevokeRoleAsync` sets `RoleId = 1`, not `0`
+- [ ] Test `RevokeRoleAsync` on a user who already has RoleId=1 (no-op check)
+
+### Integration Tests
+- [ ] Call `revoke-role` API → verify the user's role in DB is "User" (RoleId=1)
+
+### Manual Testing Checklist
+- [ ] Call `POST /api/admin/revoke-role` with a valid Admin user
+- [ ] Verify the target user's role changes to "User" in the database
+- [ ] Verify the user can still log in after role revocation
+- [ ] Verify no FK violation error occurs
+
+### Definition of Done
+- ✅ `RevokeRoleAsync` sets `RoleId = 1` (not `0`)
+- ✅ No FK constraint violations on role revocation
+- ✅ Existing functionality unaffected
+- ✅ Code compiles and all existing tests pass
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Existing users may already have `RoleId = 0` in DB | Run a data check/fix query before proceeding |
+
+### Dependencies
+- None — this is the first phase
+
+---
+
+## Phase 1 — Domain Entities & Enums (Subscription Core)
+
+### Goal
+Create all new domain entities and enums for the subscription system in the Domain layer. No database changes yet — purely the C# model definitions following existing conventions.
+
+### Features to Implement
+- 10 new domain entities: `Plan`, `Feature`, `PlanFeature`, `UserSubscription`, `SubscriptionHistory`, `Payment`, `Invoice`, `FeatureAudit`, `PlanAudit`, `PlanPriceHistory`
+- 3 new enums: `SubscriptionStatus`, `BillingCycle`, `SubscriptionAction`
+- Navigation property on existing `User` entity
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| [User.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Domain/Domain/Entity/User.cs) | Add `ICollection<UserSubscription>` navigation |
+| `Domain/Entity/Plan.cs` | **[NEW]** Plan entity |
+| `Domain/Entity/Feature.cs` | **[NEW]** Feature entity |
+| `Domain/Entity/PlanFeature.cs` | **[NEW]** Junction entity |
+| `Domain/Entity/UserSubscription.cs` | **[NEW]** User subscription entity |
+| `Domain/Entity/SubscriptionHistory.cs` | **[NEW]** Subscription history entity |
+| `Domain/Entity/Payment.cs` | **[NEW]** Payment entity |
+| `Domain/Entity/Invoice.cs` | **[NEW]** Invoice entity |
+| `Domain/Entity/FeatureAudit.cs` | **[NEW]** Feature audit entity |
+| `Domain/Entity/PlanAudit.cs` | **[NEW]** Plan audit entity |
+| `Domain/Entity/PlanPriceHistory.cs` | **[NEW]** Price history entity |
+| `Domain/Enums/SubscriptionStatusEnum.cs` | **[NEW]** Active, Expired, Cancelled, Trial, PastDue, Suspended |
+| `Domain/Enums/BillingCycleEnum.cs` | **[NEW]** Monthly, Annual, Lifetime |
+| `Domain/Enums/SubscriptionActionEnum.cs` | **[NEW]** Created, Upgraded, Downgraded, Renewed, Cancelled, Expired, Reactivated |
+
+### Backend Tasks
+1. **Create Enums** (Domain/Enums/)
+   - `SubscriptionStatusEnum.cs` — values: `Active`, `Trial`, `Expired`, `Cancelled`, `PastDue`, `Suspended`
+   - `BillingCycleEnum.cs` — values: `Monthly`, `Annual`, `Lifetime`
+   - `SubscriptionActionEnum.cs` — values: `Created`, `Upgraded`, `Downgraded`, `Renewed`, `Cancelled`, `Expired`, `Reactivated`
+   - `PaymentStatusEnum.cs` — values: `Pending`, `Completed`, `Failed`, `Refunded`
+   - `InvoiceStatusEnum.cs` — values: `Draft`, `Issued`, `Paid`, `Void`
+
+2. **Create Entities** (Domain/Entity/) — each entity must:
+   - Use `Guid` PK (matching existing convention)
+   - Include `CreatedAt` / `UpdatedAt` where applicable
+   - Use proper data annotations or leave clean for Fluent API (follow existing pattern)
+   - Include XML doc comments on each property
+   - Use enums for status fields (not raw strings)
+
+3. **Update User.cs**
+   - Add: `public ICollection<UserSubscription> Subscriptions { get; set; } = new List<UserSubscription>();`
+
+### Frontend Tasks
+- None
+
+### Database Changes
+- None (entities only; migration comes in Phase 2)
+
+### APIs to Create/Update
+- None
+
+### Validation Rules
+- All `Guid` PKs must use `Guid.NewGuid()` or database-generated
+- `Plan.Slug` must be URL-friendly (lowercase, hyphens, no spaces)
+- `Feature.FeatureKey` must be snake_case (lowercase, underscores)
+- `Plan.MonthlyPrice` must be ≥ 0
+- `UserSubscription.EndDate` must be > `StartDate`
+- `Invoice.InvoiceNumber` format: `INV-{year}-{sequence}`
+- Enum values must match the database string representations
+
+### Unit Tests
+- [ ] Each entity can be instantiated with required properties
+- [ ] `Plan.Slug` validation (only lowercase + hyphens)
+- [ ] `Feature.FeatureKey` validation (only lowercase + underscores)
+- [ ] Enum values match expected count and names
+- [ ] Navigation properties are initialized (not null)
+
+### Integration Tests
+- None (no DB interaction yet)
+
+### Manual Testing Checklist
+- [ ] Solution compiles without errors
+- [ ] All 10 new entity files exist in `Domain/Entity/`
+- [ ] All enum files exist in `Domain/Enums/`
+- [ ] `User.cs` has the new `Subscriptions` navigation property
+- [ ] No breaking changes to existing entities
+
+### Definition of Done
+- ✅ All 10 entity classes created with correct properties, types, and relationships
+- ✅ All enums created with correct values
+- ✅ `User.cs` updated with subscription navigation
+- ✅ Solution compiles successfully
+- ✅ No existing tests broken
+- ✅ Code follows existing naming conventions (`PascalCase` properties, `Guid` PKs)
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Entity property mismatch with schema | Cross-reference every property against Section 5 of the design doc |
+| Missing navigation properties | Review ER diagram (Section 6) for all relationships |
+| Enum-to-string mismatch | Ensure EF Core will store enum values as strings (configured in Phase 2) |
+
+### Dependencies
+- **Phase 0** must be complete (bug fixes verified)
+
+---
+
+## Phase 2 — Database Schema: DbContext, Migrations & Seed Data
+
+### Goal
+Register all new entities in `AppDbContext`, configure relationships and constraints via Fluent API, generate the EF Core migration, and seed initial data (Free/Basic/Advanced/Pro plans + initial features + existing user migration to Free plan).
+
+### Features to Implement
+- 10 new `DbSet<>` properties in `AppDbContext`
+- Fluent API configurations for all relationships, indexes, and constraints
+- EF Core migration
+- Seed data: 4 plans, ~15 features, PlanFeature mappings
+- Migration script: create `UserSubscription` for all existing users → Free plan
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| [AppDbContext.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Infrastructure/Data/AppDbContext.cs) | Add 10 DbSets + OnModelCreating configurations |
+| `Infrastructure/Migrations/` | **[NEW]** Generated migration file |
+
+### Backend Tasks
+1. **Add DbSets to AppDbContext**
+   - `DbSet<Plan> Plans`
+   - `DbSet<Feature> Features`
+   - `DbSet<PlanFeature> PlanFeatures`
+   - `DbSet<UserSubscription> UserSubscriptions`
+   - `DbSet<SubscriptionHistory> SubscriptionHistories`
+   - `DbSet<Payment> Payments`
+   - `DbSet<Invoice> Invoices`
+   - `DbSet<FeatureAudit> FeatureAudits`
+   - `DbSet<PlanAudit> PlanAudits`
+   - `DbSet<PlanPriceHistory> PlanPriceHistories`
+
+2. **Configure OnModelCreating** (or separate `IEntityTypeConfiguration<T>` classes):
+   - `Plan`: Unique on `Name`, `Slug`; Index on `IsActive`, `SortOrder`
+   - `Feature`: Unique on `FeatureKey`; Index on `Category`, `IsActive`
+   - `PlanFeature`: Composite unique on `(PlanId, FeatureId)`; Indexes on FKs; CASCADE delete on both sides
+   - `UserSubscription`: Filtered unique index on `UserId WHERE Status IN ('Active','Trial')`; Indexes on `Status`, `EndDate`, `PlanId`; CASCADE on User, RESTRICT on Plan
+   - `SubscriptionHistory`: Indexes on `UserId`, `CreatedAt DESC`; CASCADE on User, NO ACTION on Subscription
+   - `Payment`: Indexes on `UserId`, `Status`, `CreatedAt DESC`; CASCADE on User, NO ACTION on Subscription
+   - `Invoice`: Unique on `InvoiceNumber`; Index on `UserId`; CASCADE on User, SET NULL on Payment
+   - `FeatureAudit`: Index on `FeatureId`; CASCADE on Feature
+   - `PlanAudit`: Index on `PlanId`; CASCADE on Plan
+   - `PlanPriceHistory`: Index on `PlanId`; CASCADE on Plan
+   - Enum → string conversion for status fields
+
+3. **Generate Migration**
+   - `dotnet ef migrations add AddSubscriptionSystem`
+   - Review generated migration file for correctness
+
+4. **Seed Data** (in migration or `HasData`):
+   - **Plans**: Free (₹0, IsDefault=true), Basic (₹499), Advanced (₹999), Pro (₹1499)
+   - **Features** (~15): `dashboard`, `transactions`, `news`, `analytics`, `investment_tracking`, `reports`, `export_pdf`, `export_csv`, `ai_suggestions`, `premium_analytics`, `cards`, `onboarding`, `profile`, `security_settings`, `user_management`
+   - **PlanFeatures**: Map features to plans (Free gets basic features, Pro gets all)
+   - **User Migration**: SQL to create `UserSubscription` for every existing user → Free plan, Status=Active, EndDate=2099-12-31
+
+5. **Apply Migration**
+   - `dotnet ef database update`
+
+### Frontend Tasks
+- None
+
+### Database Changes
+- 10 new tables created
+- All indexes and constraints applied
+- Seed data inserted
+- Existing users migrated to Free plan
+
+### APIs to Create/Update
+- None
+
+### Validation Rules
+- Migration must be reversible (`Down` method must drop all 10 tables cleanly)
+- Seed data must not duplicate on re-run (use fixed GUIDs for seed data)
+- Filtered unique index on `UserSubscriptions` must prevent duplicate active subscriptions
+- All FK relationships must match the ER diagram exactly
+
+### Unit Tests
+- [ ] `AppDbContext` can be instantiated with in-memory provider
+- [ ] All 10 DbSets are accessible and non-null
+- [ ] Seed data produces expected number of Plans (4), Features (~15), PlanFeatures
+
+### Integration Tests
+- [ ] Migration applies cleanly to a fresh database
+- [ ] Migration rollback (`Down`) works without errors
+- [ ] Seed data exists after migration: 4 plans, ~15 features, correct PlanFeature mappings
+- [ ] Existing users have `UserSubscription` with Free plan
+- [ ] Filtered unique index prevents inserting two Active subscriptions for the same user
+- [ ] FK cascade delete works: deleting a Plan cascades to PlanFeatures but is RESTRICTED if active subscriptions exist
+
+### Manual Testing Checklist
+- [ ] Run `dotnet ef migrations add` — no errors
+- [ ] Run `dotnet ef database update` — all tables created
+- [ ] Query `Plans` table — 4 rows with correct pricing
+- [ ] Query `Features` table — ~15 rows with correct FeatureKeys
+- [ ] Query `PlanFeatures` table — correct plan-feature mappings
+- [ ] Query `UserSubscriptions` — one row per existing user, all on Free plan
+- [ ] Attempt to insert duplicate active subscription — should fail with unique constraint
+- [ ] Application starts normally after migration
+
+### Definition of Done
+- ✅ All 10 tables exist in the database with correct schema
+- ✅ All indexes, constraints, and FKs match the design document
+- ✅ Seed data inserted (4 plans, ~15 features, plan-feature mappings)
+- ✅ All existing users have a Free plan subscription
+- ✅ Migration is reversible
+- ✅ Application starts and existing functionality works
+- ✅ No existing tests broken
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Migration conflicts with existing migrations | Review migration history; resolve conflicts before applying |
+| Seed data GUIDs collide | Use `NEWSEQUENTIALID()` or pre-defined fixed GUIDs for seed data |
+| Filtered unique index syntax varies by provider | Test against actual SQL Server, not in-memory |
+| Existing user migration fails if Users table is empty | Handle gracefully with conditional SQL |
+
+### Dependencies
+- **Phase 1** must be complete (all entities exist)
+
+---
+
+## Phase 3 — Application Layer: Interfaces & DTOs
+
+### Goal
+Define all service interfaces and Data Transfer Objects needed by the subscription system in the Application layer. This phase establishes the contracts that the Infrastructure layer will implement.
+
+### Features to Implement
+- Service interfaces: `IPlanService`, `IFeatureService`, `ISubscriptionService`, `IFeatureAccessResolver`
+- ~15 DTOs for requests, responses, and internal communication
+- No implementation yet — contracts only
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| `Application/Interfaces/IPlanService.cs` | **[NEW]** |
+| `Application/Interfaces/IFeatureService.cs` | **[NEW]** |
+| `Application/Interfaces/ISubscriptionService.cs` | **[NEW]** |
+| `Application/Interfaces/IFeatureAccessResolver.cs` | **[NEW]** |
+| `Application/DTOs/Subscription/` | **[NEW]** Directory with ~15 DTOs |
+
+### Backend Tasks
+1. **Create `IFeatureService.cs`**
+   - `Task<List<FeatureDto>> GetAllFeaturesAsync()`
+   - `Task<FeatureDto?> GetFeatureByIdAsync(Guid id)`
+   - `Task<FeatureDto> CreateFeatureAsync(CreateFeatureRequest request)`
+   - `Task<FeatureDto> UpdateFeatureAsync(Guid id, UpdateFeatureRequest request)`
+   - `Task<bool> DeleteFeatureAsync(Guid id)` — soft delete
+   - `Task<bool> ToggleFeatureAsync(Guid id)` — enable/disable
+
+2. **Create `IPlanService.cs`**
+   - `Task<List<PlanDto>> GetAllPlansAsync(bool includeInactive = false)`
+   - `Task<PlanDto?> GetPlanByIdAsync(Guid id)`
+   - `Task<PlanDto> CreatePlanAsync(CreatePlanRequest request)`
+   - `Task<PlanDto> UpdatePlanAsync(Guid id, UpdatePlanRequest request)`
+   - `Task<bool> DeletePlanAsync(Guid id)` — soft delete
+   - `Task<bool> AssignFeatureToPlanAsync(Guid planId, Guid featureId)`
+   - `Task<bool> RemoveFeatureFromPlanAsync(Guid planId, Guid featureId)`
+   - `Task<bool> UpdatePricingAsync(Guid planId, UpdatePricingRequest request)`
+
+3. **Create `ISubscriptionService.cs`**
+   - `Task<UserSubscriptionDto?> GetCurrentSubscriptionAsync(Guid userId)`
+   - `Task<List<string>> GetUserFeaturesAsync(Guid userId)`
+   - `Task<UserSubscriptionDto> SubscribeAsync(Guid userId, SubscribeRequest request)`
+   - `Task<UserSubscriptionDto> UpgradeAsync(Guid userId, UpgradeRequest request)`
+   - `Task<UserSubscriptionDto> DowngradeAsync(Guid userId, DowngradeRequest request)`
+   - `Task<bool> CancelAsync(Guid userId, CancelRequest request)`
+   - `Task<UserSubscriptionDto> ReactivateAsync(Guid userId)`
+   - `Task<List<SubscriptionHistoryDto>> GetHistoryAsync(Guid userId)`
+
+4. **Create `IFeatureAccessResolver.cs`**
+   - `Task<HashSet<string>> GetUserFeaturesAsync(Guid userId)`
+   - `Task<bool> HasFeatureAsync(Guid userId, string featureKey)`
+   - `void InvalidateUserCache(Guid userId)`
+   - `void InvalidatePlanCache(Guid planId)`
+   - `void InvalidateAllCaches()`
+
+5. **Create DTOs** (in `Application/DTOs/Subscription/`):
+   - `PlanDto`, `PlanSummaryDto`
+   - `FeatureDto`, `FeatureSummaryDto`
+   - `UserSubscriptionDto`
+   - `SubscriptionHistoryDto`
+   - `CreateFeatureRequest`, `UpdateFeatureRequest`
+   - `CreatePlanRequest`, `UpdatePlanRequest`, `UpdatePricingRequest`
+   - `SubscribeRequest`, `UpgradeRequest`, `DowngradeRequest`, `CancelRequest`
+   - `UserFeaturesResponse`
+
+### Frontend Tasks
+- None
+
+### Database Changes
+- None
+
+### APIs to Create/Update
+- None (interfaces define the API contract; controllers come in Phase 6)
+
+### Validation Rules
+- All request DTOs must have clear property types and XML doc comments
+- `CreateFeatureRequest.FeatureKey` must be required, snake_case
+- `CreatePlanRequest.Slug` must be required, URL-friendly
+- `CreatePlanRequest.MonthlyPrice` must be ≥ 0
+- All response DTOs must be immutable (use `record` or init-only properties)
+
+### Unit Tests
+- [ ] All DTOs can be serialized/deserialized correctly (JSON round-trip)
+- [ ] Request DTOs with invalid values (null required fields) are detectable
+
+### Integration Tests
+- None (no implementation)
+
+### Manual Testing Checklist
+- [ ] Solution compiles without errors
+- [ ] All 4 interface files exist in `Application/Interfaces/`
+- [ ] All DTOs exist in `Application/DTOs/Subscription/`
+- [ ] No circular dependencies between Application and Domain layers
+
+### Definition of Done
+- ✅ All 4 service interfaces defined with complete method signatures
+- ✅ All ~15 DTOs created with correct types
+- ✅ Solution compiles
+- ✅ No breaking changes to existing interfaces
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Interface method signature changes later | Design for extensibility; use request/response objects instead of primitives |
+| DTO explosion | Group related DTOs; use inheritance where appropriate |
+
+### Dependencies
+- **Phase 1** must be complete (entities/enums referenced in DTOs)
+
+---
+
+## Phase 4 — Infrastructure: Feature & Plan Services (Admin CRUD)
+
+### Goal
+Implement `FeatureService` and `PlanService` in the Infrastructure layer — full admin CRUD operations for Features and Plans including audit trail logging.
+
+### Features to Implement
+- `FeatureService` — full CRUD for Features with `FeatureAudit` logging
+- `PlanService` — full CRUD for Plans with PlanFeature management, `PlanAudit` logging, and `PlanPriceHistory` tracking
+- DI registration for both services
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| `Infrastructure/Services/FeatureService.cs` | **[NEW]** |
+| `Infrastructure/Services/PlanService.cs` | **[NEW]** |
+| [Program.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/Program.cs) | Register new services in DI |
+
+### Backend Tasks
+1. **Implement `FeatureService.cs`**
+   - `GetAllFeaturesAsync()` — return all active features, ordered by SortOrder
+   - `GetFeatureByIdAsync(id)` — single feature lookup
+   - `CreateFeatureAsync(request)` — validate unique FeatureKey, create, log FeatureAudit(Action=Created)
+   - `UpdateFeatureAsync(id, request)` — validate, update, log FeatureAudit(Action=Updated) with old/new values
+   - `DeleteFeatureAsync(id)` — soft delete (IsActive=false), log FeatureAudit(Action=Disabled)
+   - `ToggleFeatureAsync(id)` — flip IsActive, log FeatureAudit
+
+2. **Implement `PlanService.cs`**
+   - `GetAllPlansAsync()` — include PlanFeatures → Features, ordered by SortOrder
+   - `GetPlanByIdAsync(id)` — eager load features
+   - `CreatePlanAsync(request)` — validate unique Name/Slug, create, log PlanAudit(Action=Created)
+   - `UpdatePlanAsync(id, request)` — validate, update, log PlanAudit(Action=Updated)
+   - `DeletePlanAsync(id)` — soft delete; **REJECT if plan has active subscribers**
+   - `AssignFeatureToPlanAsync(planId, featureId)` — create PlanFeature, log PlanAudit(Action=FeaturesModified)
+   - `RemoveFeatureFromPlanAsync(planId, featureId)` — remove PlanFeature, log PlanAudit
+   - `UpdatePricingAsync(planId, request)` — update price, create `PlanPriceHistory` record, log PlanAudit(Action=PriceChanged)
+
+3. **Register in DI** (`Program.cs`)
+   - `builder.Services.AddScoped<IFeatureService, FeatureService>();`
+   - `builder.Services.AddScoped<IPlanService, PlanService>();`
+
+### Frontend Tasks
+- None
+
+### Database Changes
+- None (schema already exists from Phase 2)
+
+### APIs to Create/Update
+- None (controllers come in Phase 6)
+
+### Validation Rules
+- `FeatureKey` must be unique (case-insensitive)
+- `FeatureKey` format: `^[a-z][a-z0-9_]*$` (snake_case)
+- `Plan.Name` and `Plan.Slug` must be unique
+- `Plan.Slug` format: `^[a-z][a-z0-9-]*$` (URL-friendly)
+- `Plan.MonthlyPrice` must be ≥ 0
+- `Plan.AnnualPrice` if provided, must be ≤ `MonthlyPrice * 12`
+- Cannot delete a plan with active subscribers
+- Cannot assign an inactive feature to a plan
+- Cannot create duplicate PlanFeature entries
+
+### Unit Tests
+- [ ] `FeatureService.CreateFeatureAsync` — creates feature, returns DTO, logs audit
+- [ ] `FeatureService.CreateFeatureAsync` — rejects duplicate FeatureKey
+- [ ] `FeatureService.UpdateFeatureAsync` — updates and logs old/new values
+- [ ] `FeatureService.DeleteFeatureAsync` — sets IsActive=false
+- [ ] `FeatureService.ToggleFeatureAsync` — flips IsActive
+- [ ] `PlanService.CreatePlanAsync` — creates plan with correct properties
+- [ ] `PlanService.CreatePlanAsync` — rejects duplicate Name/Slug
+- [ ] `PlanService.DeletePlanAsync` — rejects if active subscribers exist
+- [ ] `PlanService.AssignFeatureToPlanAsync` — creates PlanFeature
+- [ ] `PlanService.AssignFeatureToPlanAsync` — rejects duplicate assignment
+- [ ] `PlanService.RemoveFeatureFromPlanAsync` — removes PlanFeature
+- [ ] `PlanService.UpdatePricingAsync` — updates price and creates PlanPriceHistory
+
+### Integration Tests
+- [ ] Create Feature → verify exists in DB with correct properties
+- [ ] Create Plan → verify exists in DB with audit trail
+- [ ] Assign Feature to Plan → verify PlanFeature junction row
+- [ ] Update Pricing → verify PlanPriceHistory record created
+- [ ] Delete Plan with subscribers → verify rejection
+
+### Manual Testing Checklist
+- [ ] Application starts with new services registered
+- [ ] No DI resolution errors at startup
+- [ ] (Via unit tests) CRUD operations work correctly
+
+### Definition of Done
+- ✅ `FeatureService` implements all `IFeatureService` methods
+- ✅ `PlanService` implements all `IPlanService` methods
+- ✅ All audit trails logged correctly (FeatureAudit, PlanAudit, PlanPriceHistory)
+- ✅ Business rules enforced (unique keys, no delete with subscribers, etc.)
+- ✅ DI registered in `Program.cs`
+- ✅ All unit tests pass
+- ✅ Solution compiles and starts
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Audit logging adds complexity | Keep audit as a simple insert, no complex event sourcing |
+| Concurrency on PlanFeature operations | Use database unique constraint as safety net |
+| Service grows too large | Keep focused on CRUD; lifecycle logic goes in SubscriptionService (Phase 7) |
+
+### Dependencies
+- **Phase 2** (database schema) and **Phase 3** (interfaces/DTOs)
+
+---
+
+## Phase 5 — Feature Access Resolver & Caching
+
+### Goal
+Implement the `FeatureAccessResolver` — the core engine that determines whether a user has access to a specific feature. Includes `IMemoryCache` integration with proper invalidation triggers.
+
+### Features to Implement
+- `FeatureAccessResolver` implementation with cache-first strategy
+- Cache key patterns: `user_features:{userId}`, `plan_features:{planId}`
+- Sliding expiration (5 min for user features, 10 min for plan features)
+- Cache invalidation methods
+- DI registration
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| `Infrastructure/Services/FeatureAccessResolver.cs` | **[NEW]** |
+| [Program.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/Program.cs) | Register `IFeatureAccessResolver` + `IMemoryCache` |
+
+### Backend Tasks
+1. **Implement `FeatureAccessResolver.cs`**
+   - **Constructor**: Inject `AppDbContext`, `IMemoryCache`, `ILogger`
+   - **`GetUserFeaturesAsync(userId)`**:
+     1. Try `IMemoryCache.TryGetValue("user_features:{userId}", out HashSet<string>)`
+     2. Cache HIT → return
+     3. Cache MISS → execute the feature resolution query:
+        ```sql
+        SELECT f.FeatureKey FROM Features f
+        JOIN PlanFeatures pf ON f.Id = pf.FeatureId
+        JOIN UserSubscriptions us ON pf.PlanId = us.PlanId
+        WHERE us.UserId = @userId
+          AND us.Status IN ('Active','Trial')
+          AND us.EndDate > SYSUTCDATETIME()
+          AND f.IsActive = 1
+        ```
+     4. Cache result with 5-minute sliding expiration
+     5. Return `HashSet<string>`
+   - **`HasFeatureAsync(userId, featureKey)`**: Call `GetUserFeaturesAsync`, check `Contains(featureKey)`
+   - **`InvalidateUserCache(userId)`**: Remove `"user_features:{userId}"` from cache
+   - **`InvalidatePlanCache(planId)`**: Query all UserIds subscribed to this plan, invalidate each
+   - **`InvalidateAllCaches()`**: Clear all feature-related cache entries (use a tracking pattern or `CancellationTokenSource`)
+
+2. **Register in DI** (`Program.cs`)
+   - `builder.Services.AddMemoryCache();` (if not already present)
+   - `builder.Services.AddScoped<IFeatureAccessResolver, FeatureAccessResolver>();`
+
+3. **Wire Cache Invalidation into Phase 4 Services** (update `FeatureService` and `PlanService`)
+   - `FeatureService.ToggleFeatureAsync` → call `InvalidateAllCaches()` (global feature change)
+   - `PlanService.AssignFeatureToPlanAsync` → call `InvalidatePlanCache(planId)`
+   - `PlanService.RemoveFeatureFromPlanAsync` → call `InvalidatePlanCache(planId)`
+
+### Frontend Tasks
+- None
+
+### Database Changes
+- None
+
+### APIs to Create/Update
+- None
+
+### Validation Rules
+- Cache must never serve stale data after an admin operation (invalidation is mandatory)
+- Feature resolution must handle: no subscription, expired subscription, inactive features
+- Must return empty set (not null) for users with no features
+- Must handle the case where user has no subscription gracefully
+
+### Unit Tests
+- [ ] `GetUserFeaturesAsync` — returns correct features for a user with active subscription
+- [ ] `GetUserFeaturesAsync` — returns empty set for user with no subscription
+- [ ] `GetUserFeaturesAsync` — returns empty set for user with expired subscription
+- [ ] `GetUserFeaturesAsync` — excludes inactive features
+- [ ] `HasFeatureAsync` — returns true for valid feature, false for missing
+- [ ] Cache HIT — second call does not hit database
+- [ ] `InvalidateUserCache` — next call hits database again
+- [ ] `InvalidatePlanCache` — invalidates all users on that plan
+- [ ] `InvalidateAllCaches` — clears everything
+
+### Integration Tests
+- [ ] Full flow: create plan, assign features, create subscription → `GetUserFeaturesAsync` returns correct features
+- [ ] Expire subscription → features become empty
+- [ ] Admin removes feature from plan → cache invalidated → user loses feature
+
+### Manual Testing Checklist
+- [ ] Application starts with caching enabled
+- [ ] No errors at startup
+- [ ] (Via tests) Cache flow works as expected
+
+### Definition of Done
+- ✅ `FeatureAccessResolver` implements all `IFeatureAccessResolver` methods
+- ✅ Cache-first strategy with 5-min sliding expiration
+- ✅ Cache invalidation works for user, plan, and global scope
+- ✅ `FeatureService` and `PlanService` call invalidation on write operations
+- ✅ Returns empty set for edge cases (no subscription, expired, etc.)
+- ✅ All unit and integration tests pass
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Memory pressure from too many cache entries | Use sliding expiration; monitor memory |
+| Race condition: cache invalidated but stale read served | Acceptable for 5-min window; not critical for MVP |
+| Scoped lifetime vs. cache lifetime | `IMemoryCache` is singleton; `FeatureAccessResolver` can be scoped |
+
+### Dependencies
+- **Phase 4** (FeatureService/PlanService for invalidation wiring)
+
+---
+
+## Phase 6 — API Layer: Admin Controllers & Feature Authorization Middleware
+
+### Goal
+Create the admin API controllers for plan/feature management and the `[RequireFeature]` authorization attribute with middleware that enforces feature-based access on API endpoints.
+
+### Features to Implement
+- `FeatureAdminController` — admin CRUD for Features
+- `PlanAdminController` — admin CRUD for Plans
+- `SubscriptionAdminController` — admin subscription overview
+- `RequireFeatureAttribute` — custom authorization attribute
+- `FeatureAuthorizationMiddleware` (or action filter) — checks feature access
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| `Api/Controllers/Admin/FeatureController.cs` | **[NEW]** |
+| `Api/Controllers/Admin/PlanController.cs` | **[NEW]** |
+| `Api/Controllers/Admin/SubscriptionAdminController.cs` | **[NEW]** |
+| `Api/Attributes/RequireFeatureAttribute.cs` | **[NEW]** |
+| `Api/Filters/FeatureAuthorizationFilter.cs` | **[NEW]** Action filter for feature checks |
+| [Program.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/Program.cs) | Register middleware/filter |
+
+### Backend Tasks
+1. **Create `RequireFeatureAttribute.cs`**
+   - Inherits `Attribute`, implements `IAsyncActionFilter` (or use `TypeFilterAttribute`)
+   - Constructor takes `string featureKey`
+   - In filter execution: extract `UserId` from claims → call `IFeatureAccessResolver.HasFeatureAsync` → if false, return 403 with message
+
+2. **Create `FeatureAuthorizationFilter.cs`** (if using `IAsyncActionFilter` pattern)
+   - Resolve `IFeatureAccessResolver` from `HttpContext.RequestServices`
+   - Extract `UserId` claim from `HttpContext.User`
+   - Call `HasFeatureAsync(userId, featureKey)`
+   - If false: set `context.Result = new ObjectResult(new { error = "Feature not available", featureKey, upgradeUrl = "/plans" }) { StatusCode = 403 }`
+
+3. **Create `FeatureController.cs`** (`/api/admin/features`)
+   - `[Authorize(Policy = "AdminOnly")]` on controller
+   - `GET /` → list all features
+   - `POST /` → create feature
+   - `PUT /{id}` → update feature
+   - `DELETE /{id}` → soft-delete feature
+   - `PATCH /{id}/toggle` → enable/disable feature
+   - All endpoints return appropriate DTOs and HTTP status codes
+
+4. **Create `PlanController.cs`** (`/api/admin/plans`)
+   - `[Authorize(Policy = "AdminOnly")]` on controller
+   - `GET /` → list all plans with features
+   - `POST /` → create plan
+   - `PUT /{id}` → update plan
+   - `DELETE /{id}` → soft-delete plan
+   - `POST /{id}/features` → assign features to plan (body: `{ featureId: Guid }`)
+   - `DELETE /{planId}/features/{featureId}` → remove feature from plan
+   - `PUT /{id}/pricing` → update pricing
+
+5. **Create `SubscriptionAdminController.cs`** (`/api/admin/subscriptions`)
+   - `[Authorize(Policy = "AdminOnly")]` on controller
+   - `GET /` → list all subscriptions (with filters: status, planId, pagination)
+   - `GET /stats` → basic stats (total active, total revenue placeholder)
+   - `PATCH /{id}/status` → change subscription status
+
+6. **Register in `Program.cs`**
+   - Ensure controllers are discovered (standard `AddControllers()`)
+   - If using middleware approach, add to pipeline
+
+### Frontend Tasks
+- None
+
+### Database Changes
+- None
+
+### APIs to Create/Update
+
+| Method | Endpoint | Status |
+|--------|----------|--------|
+| `GET` | `/api/admin/features` | **[NEW]** |
+| `POST` | `/api/admin/features` | **[NEW]** |
+| `PUT` | `/api/admin/features/{id}` | **[NEW]** |
+| `DELETE` | `/api/admin/features/{id}` | **[NEW]** |
+| `PATCH` | `/api/admin/features/{id}/toggle` | **[NEW]** |
+| `GET` | `/api/admin/plans` | **[NEW]** |
+| `POST` | `/api/admin/plans` | **[NEW]** |
+| `PUT` | `/api/admin/plans/{id}` | **[NEW]** |
+| `DELETE` | `/api/admin/plans/{id}` | **[NEW]** |
+| `POST` | `/api/admin/plans/{id}/features` | **[NEW]** |
+| `DELETE` | `/api/admin/plans/{planId}/features/{featureId}` | **[NEW]** |
+| `PUT` | `/api/admin/plans/{id}/pricing` | **[NEW]** |
+| `GET` | `/api/admin/subscriptions` | **[NEW]** |
+| `GET` | `/api/admin/subscriptions/stats` | **[NEW]** |
+| `PATCH` | `/api/admin/subscriptions/{id}/status` | **[NEW]** |
+
+### Validation Rules
+- All admin endpoints require `AdminOnly` policy
+- Request body validation: required fields, correct types, range checks
+- Feature creation: FeatureKey must be snake_case and unique
+- Plan creation: Name and Slug must be unique
+- Plan deletion: must reject if active subscribers exist
+- `RequireFeature` filter: must return 403 with `{ error, featureKey, upgradeUrl }`
+- All 404s must return consistent error response
+
+### Unit Tests
+- [ ] `RequireFeatureAttribute` — allows request when user has feature
+- [ ] `RequireFeatureAttribute` — returns 403 when user lacks feature
+- [ ] `RequireFeatureAttribute` — returns 401 when user is not authenticated
+- [ ] `FeatureController.Create` — returns 201 with valid DTO
+- [ ] `FeatureController.Create` — returns 400 for invalid input
+- [ ] `PlanController.Delete` — returns 400 if plan has subscribers
+- [ ] `PlanController.AssignFeature` — returns 200 on success
+
+### Integration Tests
+- [ ] Full admin flow: Create feature → Create plan → Assign feature → Verify plan has feature
+- [ ] `RequireFeature` filter: user with feature gets 200, user without gets 403
+- [ ] Non-admin user gets 403 on all admin endpoints
+
+### Manual Testing Checklist
+- [ ] All 15 admin endpoints respond correctly via Postman/HTTP file
+- [ ] Admin can create a feature via `POST /api/admin/features`
+- [ ] Admin can create a plan via `POST /api/admin/plans`
+- [ ] Admin can assign a feature to a plan
+- [ ] Admin can remove a feature from a plan
+- [ ] Admin can update plan pricing
+- [ ] Non-admin user receives 403 on admin endpoints
+- [ ] `[RequireFeature("export_pdf")]` blocks users without that feature
+
+### Definition of Done
+- ✅ All 15 admin API endpoints functional and returning correct DTOs
+- ✅ `[RequireFeature]` attribute works as authorization filter
+- ✅ All endpoints behind `AdminOnly` policy
+- ✅ Consistent error responses (400, 401, 403, 404)
+- ✅ All tests pass
+- ✅ Existing endpoints unaffected
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| `[RequireFeature]` conflicting with existing `[Authorize]` attributes | Test both together; ensure filter ordering is correct |
+| Admin controller route conflicts | Use explicit route templates with `[Route("api/admin/...")]` |
+| Action filter DI resolution | Use `TypeFilterAttribute` or `ServiceFilterAttribute` for proper DI |
+
+### Dependencies
+- **Phase 4** (FeatureService, PlanService) and **Phase 5** (FeatureAccessResolver)
+
+---
+
+## Phase 7 — User Subscription Service & User-Facing APIs
+
+### Goal
+Implement `SubscriptionService` and the user-facing `SubscriptionController` — allowing users to view plans, subscribe, upgrade, downgrade, cancel, reactivate, and view their features/history.
+
+### Features to Implement
+- `SubscriptionService` — full lifecycle management
+- `SubscriptionController` — user-facing endpoints
+- Subscription history tracking
+- Cache invalidation on subscription changes
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| `Infrastructure/Services/SubscriptionService.cs` | **[NEW]** |
+| `Api/Controllers/SubscriptionController.cs` | **[NEW]** |
+| [Program.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/Program.cs) | Register SubscriptionService |
+
+### Backend Tasks
+1. **Implement `SubscriptionService.cs`**
+   - **`GetCurrentSubscriptionAsync(userId)`** — load active/trial subscription with Plan + Features
+   - **`GetUserFeaturesAsync(userId)`** — delegate to `IFeatureAccessResolver`
+   - **`SubscribeAsync(userId, request)`**:
+     - Validate user has no active subscription (or is on Free plan)
+     - Create `UserSubscription` (Status=Active, calculate EndDate based on BillingCycle)
+     - Log `SubscriptionHistory` (Action=Created)
+     - Invalidate user feature cache
+   - **`UpgradeAsync(userId, request)`**:
+     - Validate current plan < target plan (by SortOrder)
+     - Update subscription: new PlanId, recalculate EndDate
+     - Log `SubscriptionHistory` (Action=Upgraded, FromPlanId, ToPlanId)
+     - Invalidate cache
+   - **`DowngradeAsync(userId, request)`**:
+     - Validate current plan > target plan
+     - Schedule downgrade: store target PlanId (add `ScheduledPlanId` nullable column if not present)
+     - Log `SubscriptionHistory` (Action=Downgraded)
+   - **`CancelAsync(userId, request)`**:
+     - Set `CancelledAt = DateTime.UtcNow`, `AutoRenew = false`
+     - User keeps access until `EndDate`
+     - Log `SubscriptionHistory` (Action=Cancelled)
+   - **`ReactivateAsync(userId)`**:
+     - Only for Cancelled/Expired subscriptions
+     - Create new subscription period from today
+     - Log `SubscriptionHistory` (Action=Reactivated)
+   - **`GetHistoryAsync(userId)`** — return ordered subscription history
+
+2. **Create `SubscriptionController.cs`** (`/api/subscription`)
+   - `[Authorize]` on controller (authenticated users only)
+   - `GET /current` → current subscription
+   - `GET /my-features` → user's feature keys
+   - `GET /plans` → available plans for upgrade UI (public or authenticated)
+   - `POST /subscribe` → subscribe to a plan
+   - `POST /upgrade` → upgrade plan
+   - `POST /downgrade` → schedule downgrade
+   - `POST /cancel` → cancel subscription
+   - `POST /reactivate` → reactivate
+   - `GET /history` → subscription history
+
+3. **Register in DI** (`Program.cs`)
+   - `builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();`
+
+### Frontend Tasks
+- None
+
+### Database Changes
+- Possibly add `ScheduledPlanId` (nullable `Guid?`) column to `UserSubscriptions` table if not already present
+
+### APIs to Create/Update
+
+| Method | Endpoint | Status |
+|--------|----------|--------|
+| `GET` | `/api/subscription/current` | **[NEW]** |
+| `GET` | `/api/subscription/my-features` | **[NEW]** |
+| `GET` | `/api/subscription/plans` | **[NEW]** |
+| `POST` | `/api/subscription/subscribe` | **[NEW]** |
+| `POST` | `/api/subscription/upgrade` | **[NEW]** |
+| `POST` | `/api/subscription/downgrade` | **[NEW]** |
+| `POST` | `/api/subscription/cancel` | **[NEW]** |
+| `POST` | `/api/subscription/reactivate` | **[NEW]** |
+| `GET` | `/api/subscription/history` | **[NEW]** |
+
+### Validation Rules
+- User can only have ONE active/trial subscription at a time
+- Cannot subscribe if already on an active paid plan (must upgrade instead)
+- Cannot upgrade to a lower plan (must downgrade)
+- Cannot downgrade to a higher plan (must upgrade)
+- Cannot cancel an already cancelled/expired subscription
+- Cannot reactivate an active subscription
+- All operations must be wrapped in database transactions
+- All operations must log SubscriptionHistory
+- All operations must invalidate feature cache
+
+### Unit Tests
+- [ ] `SubscribeAsync` — creates subscription for user with no active subscription
+- [ ] `SubscribeAsync` — rejects if user already has active subscription
+- [ ] `UpgradeAsync` — upgrades from lower to higher plan
+- [ ] `UpgradeAsync` — rejects downgrade attempt via upgrade endpoint
+- [ ] `DowngradeAsync` — schedules downgrade for end of period
+- [ ] `CancelAsync` — sets CancelledAt, AutoRenew=false
+- [ ] `CancelAsync` — rejects if already cancelled
+- [ ] `ReactivateAsync` — creates new period from today
+- [ ] `ReactivateAsync` — rejects if already active
+- [ ] `GetHistoryAsync` — returns ordered history
+- [ ] Cache invalidation called on every state change
+
+### Integration Tests
+- [ ] Full lifecycle: Subscribe → Upgrade → Cancel → Reactivate
+- [ ] Subscribe → verify subscription in DB with correct dates
+- [ ] Upgrade → verify SubscriptionHistory has FromPlanId and ToPlanId
+- [ ] Cancel → verify user still has features until EndDate
+- [ ] `GET /my-features` — returns correct feature set for subscribed user
+
+### Manual Testing Checklist
+- [ ] `GET /api/subscription/plans` — returns available plans
+- [ ] `POST /api/subscription/subscribe` — creates subscription
+- [ ] `GET /api/subscription/current` — returns current subscription details
+- [ ] `GET /api/subscription/my-features` — returns feature keys
+- [ ] `POST /api/subscription/upgrade` — upgrades plan
+- [ ] `POST /api/subscription/cancel` — cancels (keeps access)
+- [ ] `POST /api/subscription/reactivate` — reactivates
+- [ ] `GET /api/subscription/history` — returns history trail
+
+### Definition of Done
+- ✅ All 9 user-facing subscription endpoints functional
+- ✅ Full lifecycle management: subscribe, upgrade, downgrade, cancel, reactivate
+- ✅ SubscriptionHistory logged for every state change
+- ✅ Cache invalidated on every subscription change
+- ✅ Business rules enforced (single active subscription, plan ordering, etc.)
+- ✅ Database transactions on all write operations
+- ✅ All tests pass
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Race condition on simultaneous subscribe requests | Filtered unique index on UserSubscriptions prevents duplicates |
+| ScheduledPlanId column requires new migration | Keep migration small; just add one nullable column |
+| Proration calculation complexity | Defer to simple full-price for MVP; add proration in future phase |
+
+### Dependencies
+- **Phase 5** (FeatureAccessResolver for cache invalidation)
+- **Phase 4** (PlanService for plan lookups)
+
+---
+
+## Phase 8 — JWT Enhancement & CheckAuth Integration
+
+### Goal
+Add `PlanId` and `SubscriptionStatus` claims to the JWT token and enhance the `/api/Auth/checkauth` response to include subscription information.
+
+### Features to Implement
+- Add subscription claims to JWT during token generation
+- Enhance `checkauth` response with plan info
+- Update `AuthState` in frontend `AuthContext`
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| [JwttokenGenerator.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Infrastructure/Security/JwttokenGenerator.cs) | Add PlanId + SubscriptionStatus claims |
+| [AuthController.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/Controllers/Auth/AuthController.cs) | Enhance checkauth response |
+| [IJwttokenGenerator.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Application/Interfaces/IJwttokenGenerator.cs) | Possibly update interface signature |
+
+### Backend Tasks
+1. **Update `JwttokenGenerator.cs`**
+   - In `GenerateAccessToken`, after existing claims:
+   - Query `UserSubscriptions` for active/trial subscription of the user
+   - Add claims:
+     - `"PlanId"` → subscription.PlanId.ToString() (or "none" if no subscription)
+     - `"SubscriptionStatus"` → subscription.Status.ToString() (or "none")
+     - `"PlanSlug"` → plan.Slug (for frontend display)
+   - Inject `AppDbContext` or `ISubscriptionService` to look up subscription
+
+2. **Update `checkauth` endpoint in `AuthController.cs`**
+   - After existing auth check, load user's subscription
+   - Add to response: `planId`, `planSlug`, `planName`, `subscriptionStatus`
+
+3. **Update `IJwttokenGenerator.cs`** if method signature changes
+
+### Frontend Tasks
+- **Update `AuthContext.tsx`** — add subscription fields to `AuthState`:
+  ```typescript
+  planId: string | null;
+  planSlug: string | null;
+  subscriptionStatus: string | null;
+  ```
+- Parse new fields from `checkauth` response
+- Store in auth state
+
+### Database Changes
+- None
+
+### APIs to Create/Update
+- `GET /api/Auth/checkauth` — **[UPDATE]** response now includes `planId`, `planSlug`, `planName`, `subscriptionStatus`
+
+### Validation Rules
+- JWT must include subscription claims only if user has an active/trial subscription
+- `checkauth` must be backward-compatible (new fields are additive)
+- Frontend must handle `null` values for plan fields (user with no subscription)
+
+### Unit Tests
+- [ ] JWT token contains `PlanId` claim for subscribed user
+- [ ] JWT token contains `SubscriptionStatus` claim
+- [ ] JWT token has no plan claims for user without subscription
+- [ ] `checkauth` response includes plan fields for subscribed user
+- [ ] `checkauth` response has null plan fields for unsubscribed user
+
+### Integration Tests
+- [ ] Login → decode JWT → verify PlanId and SubscriptionStatus claims present
+- [ ] `checkauth` → verify response schema includes plan fields
+- [ ] User without subscription → checkauth returns null plan fields
+
+### Manual Testing Checklist
+- [ ] Login as a user with Free plan → check JWT claims in jwt.io
+- [ ] Call `/api/Auth/checkauth` → verify response includes planId, planSlug, subscriptionStatus
+- [ ] Login as new user with no subscription → verify null plan fields
+- [ ] Existing login/logout flow still works correctly
+
+### Definition of Done
+- ✅ JWT includes `PlanId`, `PlanSlug`, `SubscriptionStatus` claims
+- ✅ `checkauth` returns plan information
+- ✅ Frontend `AuthContext` stores plan data
+- ✅ Backward-compatible — existing auth flow unchanged
+- ✅ All tests pass
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| JWT size increase | Only 3 small claims added; negligible |
+| DB query on every token generation | Subscription lookup is a single indexed query; fast |
+| Breaking existing auth flow | Changes are purely additive |
+
+### Dependencies
+- **Phase 7** (SubscriptionService for subscription lookups)
+
+---
+
+## Phase 9 — Frontend: SubscriptionContext, FeatureGate & Hooks
+
+### Goal
+Create the React-side subscription infrastructure — `SubscriptionContext`, `useFeature` hook, `FeatureGate` component, and `FeatureRoute` — enabling feature-based UI gating throughout the application.
+
+### Features to Implement
+- `SubscriptionContext` — loads and caches user's feature list
+- `useFeature(featureKey)` hook — boolean check
+- `<FeatureGate>` component — conditional rendering
+- `<FeatureRoute>` — feature-gated route wrapper
+- Sidebar feature-gating integration
+- Upgrade prompt component
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| `Frontend/src/context/SubscriptionContext.tsx` | **[NEW]** |
+| `Frontend/src/hooks/useFeature.ts` | **[NEW]** |
+| `Frontend/src/components/FeatureGate.tsx` | **[NEW]** |
+| `Frontend/src/components/FeatureRoute.tsx` | **[NEW]** |
+| `Frontend/src/components/UpgradePrompt.tsx` | **[NEW]** |
+| [App.tsx](file:///d:/FinancialApllication_Frontend/Frontend/src/App.tsx) | Wrap with `SubscriptionProvider` |
+| [ProtectedLayout.tsx](file:///d:/FinancialApllication_Frontend/Frontend/src/ProtectedLayout.tsx) | Add optional feature check |
+| [Sidebar.jsx](file:///d:/FinancialApllication_Frontend/Frontend/src/Component/partials/Sidebar.jsx) | Feature-gate menu items |
+
+### Backend Tasks
+- None (APIs already exist from Phase 7)
+
+### Frontend Tasks
+1. **Create `SubscriptionContext.tsx`**
+   - State: `{ plan, status, features: Set<string>, endDate, loading }`
+   - On mount (after auth): call `GET /api/subscription/my-features`
+   - Store features as `Set<string>` for O(1) lookup
+   - Re-fetch on plan change or every 5 minutes
+   - Provide `refreshFeatures()` method for manual refresh
+
+2. **Create `useFeature.ts` hook**
+   - `const canExport = useFeature("export_pdf")` → returns `boolean`
+   - Reads from `SubscriptionContext`
+
+3. **Create `FeatureGate.tsx`**
+   ```tsx
+   <FeatureGate feature="export_pdf" fallback={<UpgradePrompt />}>
+     <ExportPdfButton />
+   </FeatureGate>
+   ```
+
+4. **Create `FeatureRoute.tsx`**
+   - Wraps `<Route>` with feature check
+   - Redirects to upgrade page if feature not available
+
+5. **Create `UpgradePrompt.tsx`**
+   - Displays "Upgrade to unlock this feature" with link to plans page
+
+6. **Update `App.tsx`**
+   - Wrap app tree with `<SubscriptionProvider>`
+   - Place after `AuthProvider` (subscription depends on auth)
+
+7. **Update `ProtectedLayout.tsx`**
+   - Accept optional `requiredFeature` prop
+   - If feature specified and user lacks it → redirect to upgrade page
+
+8. **Update `Sidebar.jsx`**
+   - Map menu items to feature keys
+   - Hide or show lock icon for features the user doesn't have
+
+### Database Changes
+- None
+
+### APIs to Create/Update
+- None (consuming existing `GET /api/subscription/my-features`)
+
+### Validation Rules
+- `SubscriptionContext` must not render children until features are loaded (show loading state)
+- `FeatureGate` must render fallback (not nothing) when feature is unavailable
+- Feature list must refresh after login, logout, and plan changes
+- Must handle API errors gracefully (show features as empty, not crash)
+
+### Unit Tests
+- [ ] `useFeature("valid_feature")` returns `true` when feature is in context
+- [ ] `useFeature("invalid_feature")` returns `false`
+- [ ] `FeatureGate` renders children when feature is available
+- [ ] `FeatureGate` renders fallback when feature is unavailable
+- [ ] `SubscriptionContext` calls API on mount
+
+### Integration Tests
+- [ ] Login → verify SubscriptionContext loads features from API
+- [ ] Feature-gated sidebar item is hidden for Free user, visible for Pro user
+
+### Manual Testing Checklist
+- [ ] Login as Free user → sidebar shows only free features
+- [ ] Login as Pro user → sidebar shows all features
+- [ ] `<FeatureGate feature="export_pdf">` hides content for Free user
+- [ ] `<FeatureGate feature="export_pdf">` shows content for Pro user
+- [ ] Upgrade prompt appears when accessing locked feature
+- [ ] Feature-gated route redirects Free user to upgrade page
+- [ ] Features refresh after plan upgrade (context updates)
+
+### Definition of Done
+- ✅ `SubscriptionContext` loads and caches features
+- ✅ `useFeature` hook works correctly
+- ✅ `FeatureGate` conditionally renders UI
+- ✅ `FeatureRoute` blocks access to feature-gated routes
+- ✅ Sidebar respects feature gates
+- ✅ Upgrade prompt displays correctly
+- ✅ No regressions in existing pages
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Flash of ungated content before features load | Show loading skeleton until features resolve |
+| Context re-render performance | Use `useMemo` for the feature Set; memoize context value |
+| Sidebar is 50KB JSX — risky refactor | Make minimal changes; add feature-gate check without restructuring |
+
+### Dependencies
+- **Phase 8** (JWT/checkauth integration for auth state)
+- **Phase 7** (subscription API endpoints)
+
+---
+
+## Phase 10 — Frontend: Admin Plan/Feature Management Pages
+
+### Goal
+Build the admin-facing React pages for managing plans, features, and viewing subscription statistics.
+
+### Features to Implement
+- Plan Management page (CRUD for plans)
+- Feature Management page (CRUD for features)
+- Plan-Feature assignment UI
+- Subscription Dashboard (admin overview)
+- Replace placeholder Plans.tsx and Billing.tsx
+
+### Files/Folders Expected to Change
+
+| File | Change |
+|------|--------|
+| `Frontend/src/pages/admin/PlanManagement.tsx` | **[NEW]** |
+| `Frontend/src/pages/admin/FeatureManagement.tsx` | **[NEW]** |
+| `Frontend/src/pages/admin/SubscriptionDashboard.tsx` | **[NEW]** |
+| `Frontend/src/pages/settings/Plans.tsx` | **[REPLACE]** Replace placeholder with real plans page |
+| `Frontend/src/pages/settings/Billing.tsx` | **[REPLACE]** Replace placeholder with real billing page |
+| [App.tsx](file:///d:/FinancialApllication_Frontend/Frontend/src/App.tsx) | Add admin routes |
+| [Sidebar.jsx](file:///d:/FinancialApllication_Frontend/Frontend/src/Component/partials/Sidebar.jsx) | Add admin menu items |
+
+### Backend Tasks
+- None (APIs exist from Phase 6)
+
+### Frontend Tasks
+1. **Create `PlanManagement.tsx`** (admin)
+   - Table listing all plans with features
+   - Create/Edit plan modal
+   - Delete plan (with confirmation + subscriber check)
+   - Assign/remove features from plan (multi-select)
+   - Update pricing
+
+2. **Create `FeatureManagement.tsx`** (admin)
+   - Table listing all features with category/status
+   - Create/Edit feature modal
+   - Toggle feature (enable/disable with confirmation)
+   - Delete feature (soft-delete with confirmation)
+
+3. **Create `SubscriptionDashboard.tsx`** (admin)
+   - Total active subscriptions count
+   - Subscription breakdown by plan
+   - List of all subscriptions with filters (status, plan)
+
+4. **Replace `Plans.tsx`** (user-facing)
+   - Pricing cards showing all available plans
+   - Feature comparison matrix
+   - Current plan highlighted
+   - Upgrade/downgrade/subscribe buttons
+   - Calls `POST /api/subscription/subscribe` or `/upgrade`
+
+5. **Replace `Billing.tsx`** (user-facing)
+   - Current subscription details
+   - Billing history / subscription history
+   - Cancel subscription button
+   - Reactivate button (if cancelled/expired)
+
+6. **Update `App.tsx`**
+   - Add routes for admin pages (feature-gated to Admin role)
+
+7. **Update `Sidebar.jsx`**
+   - Add admin menu items for Plan/Feature management
+   - Role-gated to Admin users
+
+### Database Changes
+- None
+
+### APIs to Create/Update
+- None (consuming existing APIs from Phases 6 & 7)
+
+### Validation Rules
+- Admin pages only accessible to Admin role
+- Plan creation form: required fields (Name, Slug, MonthlyPrice)
+- Feature creation form: required fields (FeatureKey, DisplayName)
+- Confirmation dialog before destructive actions (delete, disable)
+- Plans page must handle edge cases (no plans, all plans inactive)
+
+### Unit Tests
+- [ ] Plan creation form validates required fields
+- [ ] Feature creation form validates FeatureKey format
+- [ ] Pricing cards render correct plan data
+- [ ] Admin pages are hidden for non-admin users
+
+### Integration Tests
+- [ ] Admin creates feature via UI → appears in feature list
+- [ ] Admin creates plan and assigns features → plan shows features
+- [ ] User views plans page → sees pricing cards with correct data
+- [ ] User subscribes to plan via plans page → subscription created
+
+### Manual Testing Checklist
+- [ ] Navigate to Plan Management → all plans displayed
+- [ ] Create a new plan → appears in the list
+- [ ] Edit plan details → changes persist
+- [ ] Assign features to plan → features shown on plan card
+- [ ] Navigate to Feature Management → all features displayed
+- [ ] Create a new feature → appears in the list
+- [ ] Toggle feature → status changes
+- [ ] Navigate to Subscription Dashboard → stats displayed
+- [ ] Navigate to Plans page (user) → pricing cards rendered
+- [ ] Subscribe to a plan → subscription confirmed
+- [ ] Navigate to Billing page → current plan and history shown
+- [ ] Cancel subscription → status updates
+- [ ] Non-admin cannot access admin pages
+
+### Definition of Done
+- ✅ Admin can manage plans (CRUD + feature assignment)
+- ✅ Admin can manage features (CRUD + toggle)
+- ✅ Admin can view subscription dashboard
+- ✅ Users see pricing cards with feature comparison
+- ✅ Users can subscribe/upgrade/cancel from the UI
+- ✅ Billing page shows subscription details and history
+- ✅ Placeholder pages replaced with working implementations
+- ✅ Role-gated admin access
+- ✅ All tests pass
+
+### Risks
+| Risk | Mitigation |
+|------|-----------|
+| Large Sidebar.jsx refactor risk | Make minimal, additive changes only |
+| Plans page UX complexity | Start with simple pricing cards; iterate on design later |
+| Admin page accessibility | Ensure proper ARIA labels and keyboard navigation |
+
+### Dependencies
+- **Phase 9** (SubscriptionContext for feature-gating admin routes)
+- **Phase 6** (Admin APIs)
+- **Phase 7** (User subscription APIs)
+
+---
+
+## Summary
+
+| Phase | Scope | Layer | Estimated Effort |
+|-------|-------|-------|-----------------|
+| 0 | Bug fix (RevokeRoleAsync) | Backend | 0.5 day |
+| 1 | Domain entities + enums | Domain | 1-2 days |
+| 2 | DbContext + migrations + seed data | Infrastructure/DB | 2-3 days |
+| 3 | Interfaces + DTOs | Application | 1 day |
+| 4 | FeatureService + PlanService | Infrastructure | 2-3 days |
+| 5 | FeatureAccessResolver + caching | Infrastructure | 1-2 days |
+| 6 | Admin controllers + RequireFeature middleware | API | 2-3 days |
+| 7 | SubscriptionService + user APIs | Infrastructure/API | 3-4 days |
+| 8 | JWT claims + checkauth enhancement | Backend/Frontend | 1 day |
+| 9 | SubscriptionContext + FeatureGate + hooks | Frontend | 2-3 days |
+| 10 | Admin pages + Plans/Billing pages | Frontend | 3-4 days |
+
+> [!IMPORTANT]
+> **Total estimated effort: 17–26 working days (3-5 weeks)**
+>
+> This is more granular than the original 3-phase plan but ensures each increment is independently testable, deployable, and reviewable.
+
+---
+
+> [!NOTE]
+> **Payments/Invoices tables** are created in Phase 2 (schema) but their service logic (payment gateway integration, invoice generation) is **intentionally deferred** beyond Phase 10. This keeps the MVP focused on feature-access control without coupling to payment processing. Payment integration (Razorpay/Stripe), trial period logic, background jobs, and Redis caching are all **future phases** per Agile principles.
