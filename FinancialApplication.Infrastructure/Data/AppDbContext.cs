@@ -39,6 +39,9 @@ namespace FinancialApplication.Infrastructure.Data
         public DbSet<PlanAudit> PlanAudits { get; set; }
         public DbSet<PlanPriceHistory> PlanPriceHistories { get; set; }
 
+        // ── Banner System DbSet ─────────────────────────────────────────────
+        public DbSet<Banner> Banners { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -159,6 +162,12 @@ namespace FinancialApplication.Infrastructure.Data
 
                 entity.HasIndex(n => n.CreatedAt);
             });
+
+            // ════════════════════════════════════════════════════════════════════
+            // BANNER CONFIGURATION
+            // ════════════════════════════════════════════════════════════════════
+
+            ConfigureBanner(modelBuilder);
 
             // ════════════════════════════════════════════════════════════════════
             // SUBSCRIPTION SYSTEM CONFIGURATIONS
@@ -694,6 +703,46 @@ namespace FinancialApplication.Infrastructure.Data
                         CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
                     }
                 );
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // BANNER CONFIGURATION
+        // ════════════════════════════════════════════════════════════════════
+        private static void ConfigureBanner(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Banner>(entity =>
+            {
+                entity.HasKey(b => b.Id);
+
+                // Index on OriginalUrl for dedup checks (avoid re-downloading same image)
+                entity.HasIndex(b => b.OriginalUrl);
+
+                // Store compressed image as varbinary(max)
+                entity.Property(b => b.CompressedImage)
+                      .IsRequired()
+                      .HasColumnType("varbinary(max)");
+
+                entity.Property(b => b.ContentType)
+                      .IsRequired()
+                      .HasMaxLength(50)
+                      .HasDefaultValue("image/jpeg");
+
+                entity.Property(b => b.OriginalUrl)
+                      .IsRequired()
+                      .HasMaxLength(2048);
+
+                entity.Property(b => b.SourcePageUrl)
+                      .HasMaxLength(2048);
+
+                entity.Property(b => b.Title)
+                      .HasMaxLength(500);
+
+                entity.Property(b => b.Description)
+                      .HasMaxLength(2000);
+
+                entity.Property(b => b.CreatedAt)
+                      .HasDefaultValueSql("SYSUTCDATETIME()");
             });
         }
     }

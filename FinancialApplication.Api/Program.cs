@@ -12,6 +12,7 @@ using FinancialApplication.Infrastructure.Data;
 using FinancialApplication.Infrastructure.Services;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Http;
+
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -51,6 +52,7 @@ builder.Services.AddHttpClient("BannerFetcher", client =>
     client.Timeout = TimeSpan.FromSeconds(15);
     client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
 });
+builder.Services.AddSingleton<IImageCompressionService, ImageCompressionService>();
 builder.Services.AddScoped<IBannerFetchService, BannerFetchService>();
 
 builder.Services.AddHttpClient("GoogleAuth", client =>

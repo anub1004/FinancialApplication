@@ -493,6 +493,7 @@ namespace FinancialApplication.Infrastructure.Services
             var history = await _context.SubscriptionHistories
                 .Where(h => h.UserId == userId)
                 .OrderByDescending(h => h.CreatedAt)
+                .Take(2)
                 .ToListAsync();
 
             // Pre-load plan names for FromPlanId / ToPlanId
