@@ -36,6 +36,7 @@ namespace FinancialApp.Infrastructure.Services
         private readonly IPasswordHasher _passwordHasher;
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ISubscriptionService _subscriptionService;
 
         public AuthService(
             AppDbContext context,
@@ -43,7 +44,8 @@ namespace FinancialApp.Infrastructure.Services
             RefreshTokenGenerator refreshTokenGenerator,
             IPasswordHasher passwordHasher,
             IConfiguration configuration,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            ISubscriptionService subscriptionService)
         {
             _context = context;
             _tokenGenerator = tokenGenerator;
@@ -51,6 +53,7 @@ namespace FinancialApp.Infrastructure.Services
             _passwordHasher = passwordHasher;
             _configuration = configuration;
             _httpClientFactory = httpClientFactory;
+            _subscriptionService = subscriptionService;
         }
 
         // ─── Registration ───────────────────────────────────────────────────────────
@@ -116,7 +119,7 @@ namespace FinancialApp.Infrastructure.Services
                 TotpSetupRequired = false,
                 EmailOtpRequired = true,
                 Email = user.Email,
-                TotpSessionToken = GenerateTotpSessionToken(user.Id)
+                TotpSessionToken = GenerateTotpSessionToken(user.Id, request.SelectedPlanId)
             };
         }
 
@@ -320,8 +323,8 @@ namespace FinancialApp.Infrastructure.Services
         // ─── Step 2: Verify TOTP code and issue real JWT tokens ─────────────────────
         public async Task<AuthenticationResultDto> VerifyTotpAndLoginAsync(TotpVerifyDto request)
         {
-            // Validate the TOTP session token
-            var userId = ValidateTotpSessionToken(request.TotpSessionToken);
+            // Validate the TOTP session token and extract selectedPlanId if present
+            var (userId, selectedPlanId) = ValidateTotpSessionToken(request.TotpSessionToken);
             if (!userId.HasValue)
                 throw new UnauthorizedAccessException("Invalid or expired TOTP session token. Please login again.");
 
@@ -344,15 +347,32 @@ namespace FinancialApp.Infrastructure.Services
 
             // Mark TOTP as configured if this is the first successful verification
             IReadOnlyList<string>? recoveryCodes = null;
+            bool isFirstSetup = false;
             var hasUsableRecoveryCode = await _context.RecoveryCodes
                 .AnyAsync(c => c.UserId == user.Id && c.UsedAt == null);
             if (!user.IsTotpConfigured || !hasUsableRecoveryCode)
             {
+                isFirstSetup = true;
                 user.IsTotpConfigured = true;
                 user.UpdatedAt = DateTime.UtcNow;
                 recoveryCodes = GenerateRecoveryCodes(user.Id);
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
+            }
+
+            // Auto-create subscription for new users (signup flow)
+            // This runs on first TOTP setup, which only happens during registration
+            if (isFirstSetup)
+            {
+                try
+                {
+                    await _subscriptionService.CreateSubscriptionForNewUserAsync(userId.Value, selectedPlanId);
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't fail the login — subscription can be created later
+                    System.Diagnostics.Debug.WriteLine($"Failed to create signup subscription: {ex.Message}");
+                }
             }
 
             // Issue real JWT tokens
@@ -424,9 +444,18 @@ namespace FinancialApp.Infrastructure.Services
             code.UsedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            // Email verified! Return the TOTP QR setup data
+            // Extract selectedPlanId from the original session token (if provided)
+            // so it survives through the email verification step into the TOTP step
+            Guid? selectedPlanId = null;
+            if (!string.IsNullOrEmpty(request.TotpSessionToken))
+            {
+                var (_, planId) = ValidateTotpSessionToken(request.TotpSessionToken);
+                selectedPlanId = planId;
+            }
+
+            // Email verified! Return the TOTP QR setup data with selectedPlanId preserved
             var qrCodeBase64 = GenerateQrCodeBase64(user.Email, user.TotpSecret);
-            var totpSessionToken = GenerateTotpSessionToken(user.Id);
+            var totpSessionToken = GenerateTotpSessionToken(user.Id, selectedPlanId);
 
             return new AuthenticationResultDto
             {
@@ -715,18 +744,25 @@ using var message = new MailMessage(from, recipient)
         /// <summary>
         /// Generates a short-lived (5-minute) JWT token that only authorizes TOTP verification.
         /// This is NOT a full auth token — it contains a special "purpose" claim.
+        /// Optionally includes the selected plan ID for the signup flow.
         /// </summary>
-        private string GenerateTotpSessionToken(Guid userId)
+        private string GenerateTotpSessionToken(Guid userId, Guid? selectedPlanId = null)
         {
             var jwtSettings = _configuration.GetSection("Jwt");
             var secretKey = jwtSettings["Key"];
             var key = Encoding.ASCII.GetBytes(secretKey!);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                 new Claim("purpose", "totp-verification")
             };
+
+            // Add selected plan ID claim for signup flow
+            if (selectedPlanId.HasValue)
+            {
+                claims.Add(new Claim("selectedPlanId", selectedPlanId.Value.ToString()));
+            }
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -745,10 +781,10 @@ using var message = new MailMessage(from, recipient)
         }
 
         /// <summary>
-        /// Validates a TOTP session token and extracts the userId.
-        /// Returns null if the token is invalid, expired, or not a TOTP session token.
+        /// Validates a TOTP session token and extracts the userId and optional selectedPlanId.
+        /// Returns (null, null) if the token is invalid, expired, or not a TOTP session token.
         /// </summary>
-        private Guid? ValidateTotpSessionToken(string token)
+        private (Guid? userId, Guid? selectedPlanId) ValidateTotpSessionToken(string token)
         {
             try
             {
@@ -772,17 +808,24 @@ using var message = new MailMessage(from, recipient)
                 // Verify this is a TOTP session token, not a regular auth token
                 var purposeClaim = principal.FindFirst("purpose")?.Value;
                 if (purposeClaim != "totp-verification")
-                    return null;
+                    return (null, null);
 
+                Guid? userId = null;
                 var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (Guid.TryParse(userIdClaim, out var userId))
-                    return userId;
+                if (Guid.TryParse(userIdClaim, out var parsedUserId))
+                    userId = parsedUserId;
 
-                return null;
+                // Extract optional selectedPlanId claim
+                Guid? selectedPlanId = null;
+                var planIdClaim = principal.FindFirst("selectedPlanId")?.Value;
+                if (!string.IsNullOrEmpty(planIdClaim) && Guid.TryParse(planIdClaim, out var parsedPlanId))
+                    selectedPlanId = parsedPlanId;
+
+                return (userId, selectedPlanId);
             }
             catch
             {
-                return null;
+                return (null, null);
             }
         }
 

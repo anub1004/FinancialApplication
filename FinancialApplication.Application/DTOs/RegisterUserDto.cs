@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace FinancialApplication.Application.DTOs
@@ -16,5 +17,10 @@ namespace FinancialApplication.Application.DTOs
         [Required]
         [MinLength(8, ErrorMessage = "Password must be at least 8 characters long.")]
         public string Password { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional plan ID selected during signup. Null means the default (free) plan is assigned.
+        /// </summary>
+        public Guid? SelectedPlanId { get; set; }
     }
 }

@@ -30,6 +30,7 @@ namespace NewsDataUpdateService
                             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
                     });
 
+                    services.AddSingleton<IImageCompressionService, ImageCompressionService>();
                     services.AddScoped<INewsProcessingService, NewsProcessingService>();
                 })
                 .Build();

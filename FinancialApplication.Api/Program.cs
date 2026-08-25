@@ -12,6 +12,7 @@ using FinancialApplication.Infrastructure.Data;
 using FinancialApplication.Infrastructure.Services;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Http;
+
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -40,12 +41,18 @@ builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IFeatureService, FeatureService>();
+builder.Services.AddScoped<IPlanService, PlanService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IFeatureAccessResolver, FeatureAccessResolver>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient("BannerFetcher", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(15);
     client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
 });
+builder.Services.AddSingleton<IImageCompressionService, ImageCompressionService>();
 builder.Services.AddScoped<IBannerFetchService, BannerFetchService>();
 
 builder.Services.AddHttpClient("GoogleAuth", client =>
@@ -64,6 +71,10 @@ builder.Services.AddHttpClient("NewsScraper", client =>
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
 });
 builder.Services.AddScoped<INewsProcessingService, NewsProcessingService>();
+
+// ── Pre-warm news cache on startup so first request is instant ────────────
+builder.Services.AddHostedService<FinancialApplication.Api.Services.NewsCacheWarmupService>();
+
 
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
@@ -155,7 +166,14 @@ builder.Services.AddAuthorization(options =>
 });
 
 
-builder.Services.AddControllers();
+builder.Services.AddScoped<IPaymentGateway, SimulatedPaymentGateway>();
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
