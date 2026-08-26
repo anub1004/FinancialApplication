@@ -47,6 +47,13 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IFeatureAccessResolver, FeatureAccessResolver>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddHttpContextAccessor();
+
+// ── Sprint 1: Core Financial Services ──────────────────────────────────────
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IInvestmentService, InvestmentService>();
+builder.Services.AddScoped<IGoalService, GoalService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+
 builder.Services.AddHttpClient("BannerFetcher", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(15);
