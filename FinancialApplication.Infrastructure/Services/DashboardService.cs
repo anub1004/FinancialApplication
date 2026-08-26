@@ -76,7 +76,9 @@ namespace FinancialApplication.Infrastructure.Services
                 InvestmentCurrentValue = investments.Sum(i => i.CurrentValue),
                 InvestmentReturns = investments.Sum(i => i.CurrentValue) - investments.Sum(i => i.Amount),
                 GoalsCompleted = goals.Count(g => g.Status == GoalStatusEnum.Completed),
-                GoalsInProgress = goals.Count(g => g.Status == GoalStatusEnum.InProgress)
+                GoalsInProgress = goals.Count(g => g.Status == GoalStatusEnum.InProgress),
+                GoalsTotalSaved = goals.Sum(g => g.CurrentAmount),
+                GoalsTotalTarget = goals.Sum(g => g.TargetAmount)
             };
         }
 
@@ -182,7 +184,8 @@ namespace FinancialApplication.Infrastructure.Services
                     Amount = t.TransactionType == TransactionTypeEnum.Income ? t.Amount : -t.Amount,
                     Currency = t.Currency,
                     Date = t.TransactionDate,
-                    Icon = t.TransactionType == TransactionTypeEnum.Income ? "💰" : "💸"
+                    Icon = t.TransactionType == TransactionTypeEnum.Income ? "💰" : "💸",
+                    IsPositive = t.TransactionType == TransactionTypeEnum.Income
                 });
             }
 
@@ -205,7 +208,8 @@ namespace FinancialApplication.Infrastructure.Services
                     Amount = i.Amount,
                     Currency = i.Currency,
                     Date = i.UpdatedAt,
-                    Icon = "📈"
+                    Icon = "📈",
+                    IsPositive = true
                 });
             }
 
@@ -232,7 +236,8 @@ namespace FinancialApplication.Infrastructure.Services
                     Amount = g.CurrentAmount,
                     Currency = g.Currency,
                     Date = g.UpdatedAt,
-                    Icon = g.Icon ?? "🎯"
+                    Icon = g.Icon ?? "🎯",
+                    IsPositive = true
                 });
             }
 

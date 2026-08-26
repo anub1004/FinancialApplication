@@ -28,6 +28,8 @@ namespace FinancialApplication.Application.DTOs.Dashboard
         // Goals snapshot
         public int GoalsCompleted { get; set; }
         public int GoalsInProgress { get; set; }
+        public decimal GoalsTotalSaved { get; set; }
+        public decimal GoalsTotalTarget { get; set; }
     }
 
     // ── Monthly Trend ────────────────────────────────────────────────────────
@@ -61,5 +63,6 @@ namespace FinancialApplication.Application.DTOs.Dashboard
         public string? Currency { get; set; }
         public DateTime Date { get; set; }
         public string Icon { get; set; } = string.Empty;
+        public bool IsPositive { get; set; }
     }
 }
