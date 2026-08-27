@@ -5,6 +5,7 @@ using FinancialApplication.Application.DTOs.Dashboard;
 using FinancialApplication.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using FinancialApplication.Api.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinancialApplication.Api.Controllers
@@ -13,10 +14,12 @@ namespace FinancialApplication.Api.Controllers
     /// Dashboard API providing aggregated financial data for the user's home screen.
     /// Route: /api/dashboard
     /// All endpoints require authentication.
+    /// Requires 'dashboard' feature (Free+ plan).
     /// </summary>
     [ApiController]
     [Route("api/dashboard")]
     [Authorize]
+    [RequireFeature("dashboard")]
     public class DashboardController : ControllerBase
     {
         private readonly IDashboardService _dashboardService;

@@ -56,7 +56,7 @@ namespace FinancialApp.Infrastructure.Services
             _subscriptionService = subscriptionService;
         }
 
-        // ─── Registration ───────────────────────────────────────────────────────────
+        // Registration 
         public async Task<AuthenticationResultDto> RegisterAsync(RegisterUserDto request)
         {
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
@@ -75,7 +75,7 @@ namespace FinancialApp.Infrastructure.Services
                 throw new InvalidOperationException("Default user role is not configured.");
             }
 
-            // Generate TOTP secret at registration time (mandatory for all users)
+            // Generate TOTP secret at registration time
             var totpSecret = GenerateTotpSecret();
 
             var user = new User 
@@ -123,7 +123,7 @@ namespace FinancialApp.Infrastructure.Services
             };
         }
 
-        // ─── Login Step 1: Validate credentials, return TOTP challenge ──────────────
+        // Login Step 1: Validate credentials, return TOTP challenge
         public async Task<object> LoginStep1Async(LoginUserDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Email))
@@ -148,7 +148,7 @@ namespace FinancialApp.Infrastructure.Services
             if (user.Role == null)
                 throw new UnauthorizedAccessException("User role not assigned");
 
-            // Generate a short-lived TOTP session token (not a full auth token)
+            // Generate a short-lived TOTP session token 
             var totpSessionToken = GenerateTotpSessionToken(user.Id);
 
             // Check if user needs TOTP setup (first time)
@@ -175,7 +175,7 @@ namespace FinancialApp.Infrastructure.Services
                 };
             }
 
-            // User already has TOTP configured — just ask for the code
+            // User already has TOTP -ask code
             if (!user.IsTotpConfigured)
             {
                 // Secret exists but never verified — re-show QR code
@@ -200,7 +200,7 @@ namespace FinancialApp.Infrastructure.Services
             };
         }
 
-        // ─── Google Login Step 1: Validate Google token, return TOTP challenge ──────
+        // Google Login Step 1: Validate Google token, return TOTP 
         public async Task<object> GoogleLoginStep1Async(string idToken)
         {
             // Step 1: Verify the token with Google
@@ -213,7 +213,7 @@ namespace FinancialApp.Infrastructure.Services
             var json = await response.Content.ReadAsStringAsync();
             var googleUser = JsonSerializer.Deserialize<JsonElement>(json);
 
-            // Step 2: Validate the audience (must match our Client ID)
+            // Step 2: Validate the audience -must match Client ID
             var expectedClientId = _configuration["Google:ClientId"];
             var audience = googleUser.GetProperty("aud").GetString();
 
@@ -233,7 +233,7 @@ namespace FinancialApp.Infrastructure.Services
 
             if (user == null)
             {
-                // Check if a user with this email already exists (registered normally)
+                // Check if a user with this email already exists 
                 user = await _context.Users
                     .Include(u => u.Role)
                     .FirstOrDefaultAsync(u => u.Email == email);
@@ -247,7 +247,7 @@ namespace FinancialApp.Infrastructure.Services
                 }
                 else
                 {
-                    // Create a brand-new user
+                    // Create a new user
                     var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User" && r.IsActive)
                         ?? throw new InvalidOperationException("Default user role is not configured.");
 
@@ -275,7 +275,7 @@ namespace FinancialApp.Infrastructure.Services
             if (!user.IsActive)
                 throw new UnauthorizedAccessException("Account is deactivated.");
 
-            // Step 5: Return TOTP challenge (instead of issuing JWT directly)
+            // Step 5: Return TOTP code instead of issuing JWT directly
             var totpSessionToken = GenerateTotpSessionToken(user.Id);
 
             if (string.IsNullOrEmpty(user.TotpSecret))
@@ -320,7 +320,7 @@ namespace FinancialApp.Infrastructure.Services
             };
         }
 
-        // ─── Step 2: Verify TOTP code and issue real JWT tokens ─────────────────────
+        // Step 2: Verify TOTP code and issue JWT tokens
         public async Task<AuthenticationResultDto> VerifyTotpAndLoginAsync(TotpVerifyDto request)
         {
             // Validate the TOTP session token and extract selectedPlanId if present
@@ -341,7 +341,7 @@ namespace FinancialApp.Infrastructure.Services
             if (string.IsNullOrEmpty(user.TotpSecret))
                 throw new UnauthorizedAccessException("TOTP is not configured for this account. Please login again.");
 
-            // Validate the TOTP code
+            // Validate TOTP code
             if (!ValidateTotpCode(user.TotpSecret, request.TotpCode))
                 throw new UnauthorizedAccessException("Invalid TOTP code. Please try again.");
 
@@ -375,7 +375,7 @@ namespace FinancialApp.Infrastructure.Services
                 }
             }
 
-            // Issue real JWT tokens
+            // Issue  JWT token
             var result = await AuthenticateAsync(
                 user.Id,
                 user.Email,
@@ -471,7 +471,7 @@ namespace FinancialApp.Infrastructure.Services
             };
         }
 
-        // ─── Core authentication (JWT issuance) ────────────────────────────────────
+        // ─── Core authentication  ────────────────────────────────────
         public async Task<AuthenticationResultDto> AuthenticateAsync(Guid userId, string email, string username, string role)
         {
             var accessToken = _tokenGenerator.GenerateAccessToken(userId, email, username, role);
@@ -606,9 +606,7 @@ namespace FinancialApp.Infrastructure.Services
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════════════
-        // TOTP Private Helper Methods
-        // ═══════════════════════════════════════════════════════════════════════════
+      
 
         /// <summary>
         /// Generates a random 20-byte TOTP secret and returns it as a Base32 string.
@@ -638,7 +636,6 @@ namespace FinancialApp.Infrastructure.Services
 
         /// <summary>
         /// Validates a 6-digit TOTP code against the stored secret.
-        /// Allows ±1 time step window (30 seconds each) to account for clock drift.
         /// </summary>
         private bool ValidateTotpCode(string secret, string code)
         {

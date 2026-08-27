@@ -5,6 +5,7 @@ using FinancialApplication.Application.DTOs.Transaction;
 using FinancialApplication.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using FinancialApplication.Api.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinancialApplication.Api.Controllers
@@ -13,10 +14,12 @@ namespace FinancialApplication.Api.Controllers
     /// User-facing transaction endpoints for income/expense tracking.
     /// Route: /api/transactions
     /// All endpoints require authentication.
+    /// Requires 'transactions' feature (Free+ plan).
     /// </summary>
     [ApiController]
     [Route("api/transactions")]
     [Authorize]
+    [RequireFeature("transactions")]
     public class TransactionController : ControllerBase
     {
         private readonly ITransactionService _transactionService;

@@ -5,6 +5,7 @@ using FinancialApplication.Application.DTOs.Goal;
 using FinancialApplication.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using FinancialApplication.Api.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinancialApplication.Api.Controllers
@@ -13,10 +14,12 @@ namespace FinancialApplication.Api.Controllers
     /// User-facing financial goals endpoints.
     /// Route: /api/goals
     /// All endpoints require authentication.
+    /// Requires 'goals_basic' feature (Free+ plan).
     /// </summary>
     [ApiController]
     [Route("api/goals")]
     [Authorize]
+    [RequireFeature("goals_basic")]
     public class GoalController : ControllerBase
     {
         private readonly IGoalService _goalService;

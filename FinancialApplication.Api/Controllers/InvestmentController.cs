@@ -5,6 +5,7 @@ using FinancialApplication.Application.DTOs.Investment;
 using FinancialApplication.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using FinancialApplication.Api.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinancialApplication.Api.Controllers
@@ -13,10 +14,12 @@ namespace FinancialApplication.Api.Controllers
     /// User-facing investment portfolio endpoints.
     /// Route: /api/investments
     /// All endpoints require authentication.
+    /// Requires 'investment_tracking' feature (Basic+ plan).
     /// </summary>
     [ApiController]
     [Route("api/investments")]
     [Authorize]
+    [RequireFeature("investment_tracking")]
     public class InvestmentController : ControllerBase
     {
         private readonly IInvestmentService _investmentService;

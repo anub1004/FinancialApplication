@@ -38,6 +38,8 @@ namespace FinancialApplication.Infrastructure.Data
         public DbSet<FeatureAudit> FeatureAudits { get; set; }
         public DbSet<PlanAudit> PlanAudits { get; set; }
         public DbSet<PlanPriceHistory> PlanPriceHistories { get; set; }
+        public DbSet<PortfolioAsset> PortfolioAssets { get; set; }
+        public DbSet<TaxEntry> TaxEntries { get; set; }
 
         // ── Banner System DbSet ─────────────────────────────────────────────
         public DbSet<Banner> Banners { get; set; }
@@ -183,6 +185,13 @@ namespace FinancialApplication.Infrastructure.Data
             ConfigureFeatureAudit(modelBuilder);
             ConfigurePlanAudit(modelBuilder);
             ConfigurePlanPriceHistory(modelBuilder);
+
+            // ════════════════════════════════════════════════════════════════════
+            // PORTFOLIO & TAX CONFIGURATIONS
+            // ════════════════════════════════════════════════════════════════════
+
+            ConfigurePortfolioAsset(modelBuilder);
+            ConfigureTaxEntry(modelBuilder);
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -312,23 +321,46 @@ namespace FinancialApplication.Infrastructure.Data
                 entity.Property(f => f.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.Property(f => f.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
-                // Seed data — 15 features with fixed GUIDs
+                // Seed data — 27 features with fixed GUIDs
                 entity.HasData(
+                    // ── Core Features (Free+) ──
                     new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000001"), FeatureKey = "dashboard", DisplayName = "Dashboard", Description = "Main financial dashboard with overview and widgets.", Category = "Core", IsActive = true, SortOrder = 1, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000002"), FeatureKey = "transactions", DisplayName = "Transactions", Description = "Track income and expense transactions.", Category = "Core", IsActive = true, SortOrder = 2, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000003"), FeatureKey = "news", DisplayName = "Financial News", Description = "Access curated financial news articles.", Category = "Core", IsActive = true, SortOrder = 3, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000004"), FeatureKey = "profile", DisplayName = "Profile Management", Description = "Manage user profile and account settings.", Category = "Core", IsActive = true, SortOrder = 4, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000005"), FeatureKey = "security_settings", DisplayName = "Security Settings", Description = "Configure 2FA, recovery codes, and login security.", Category = "Core", IsActive = true, SortOrder = 5, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000006"), FeatureKey = "onboarding", DisplayName = "Onboarding", Description = "Guided setup and onboarding experience.", Category = "Core", IsActive = true, SortOrder = 6, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000007"), FeatureKey = "analytics", DisplayName = "Analytics", Description = "Basic financial analytics and charts.", Category = "Analytics", IsActive = true, SortOrder = 7, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000008"), FeatureKey = "investment_tracking", DisplayName = "Investment Tracking", Description = "Monitor and manage investment portfolio.", Category = "Investments", IsActive = true, SortOrder = 8, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000009"), FeatureKey = "cards", DisplayName = "Cards Management", Description = "Manage payment cards and linked accounts.", Category = "Finance", IsActive = true, SortOrder = 9, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000010"), FeatureKey = "reports", DisplayName = "Reports", Description = "Generate financial reports and summaries.", Category = "Reports", IsActive = true, SortOrder = 10, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000011"), FeatureKey = "export_pdf", DisplayName = "Export PDF", Description = "Export reports and data as PDF documents.", Category = "Reports", IsActive = true, SortOrder = 11, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000012"), FeatureKey = "export_csv", DisplayName = "Export CSV", Description = "Export data as CSV files for spreadsheet use.", Category = "Reports", IsActive = true, SortOrder = 12, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000013"), FeatureKey = "premium_analytics", DisplayName = "Premium Analytics", Description = "Advanced analytics with trend analysis and predictions.", Category = "Analytics", IsActive = true, SortOrder = 13, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000014"), FeatureKey = "ai_suggestions", DisplayName = "AI Suggestions", Description = "AI-powered financial insights and recommendations.", Category = "AI", IsActive = true, SortOrder = 14, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000015"), FeatureKey = "user_management", DisplayName = "User Management", Description = "Admin: manage users, roles, and permissions.", Category = "Admin", IsActive = true, SortOrder = 15, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000016"), FeatureKey = "goals_basic", DisplayName = "Basic Goals", Description = "Set and track basic financial savings goals.", Category = "Goals", IsActive = true, SortOrder = 7, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000017"), FeatureKey = "notifications", DisplayName = "Notifications", Description = "Receive alerts for transactions, goals, and account activity.", Category = "Core", IsActive = true, SortOrder = 8, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+
+                    // ── Basic+ Features ──
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000007"), FeatureKey = "analytics", DisplayName = "Analytics", Description = "Basic financial analytics and charts.", Category = "Analytics", IsActive = true, SortOrder = 10, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000008"), FeatureKey = "investment_tracking", DisplayName = "Investment Tracking", Description = "Monitor and manage investment portfolio.", Category = "Investments", IsActive = true, SortOrder = 11, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000009"), FeatureKey = "cards", DisplayName = "Cards Management", Description = "Manage payment cards and linked accounts.", Category = "Finance", IsActive = true, SortOrder = 12, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000018"), FeatureKey = "goals_unlimited", DisplayName = "Unlimited Goals", Description = "Create unlimited financial goals with no restrictions.", Category = "Goals", IsActive = true, SortOrder = 13, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000019"), FeatureKey = "recurring_transactions", DisplayName = "Recurring Transactions", Description = "Set up automatic recurring income and expense entries.", Category = "Transactions", IsActive = true, SortOrder = 14, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000020"), FeatureKey = "transaction_categories", DisplayName = "Custom Categories", Description = "Create custom transaction categories for better organization.", Category = "Transactions", IsActive = true, SortOrder = 15, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000012"), FeatureKey = "export_csv", DisplayName = "Export CSV", Description = "Export data as CSV files for spreadsheet use.", Category = "Reports", IsActive = true, SortOrder = 16, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+
+                    // ── Advanced+ Features ──
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000010"), FeatureKey = "reports", DisplayName = "Reports", Description = "Generate financial reports and summaries.", Category = "Reports", IsActive = true, SortOrder = 20, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000011"), FeatureKey = "export_pdf", DisplayName = "Export PDF", Description = "Export reports and data as PDF documents.", Category = "Reports", IsActive = true, SortOrder = 21, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000013"), FeatureKey = "premium_analytics", DisplayName = "Premium Analytics", Description = "Advanced analytics with trend analysis and predictions.", Category = "Analytics", IsActive = true, SortOrder = 22, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000021"), FeatureKey = "investment_analytics", DisplayName = "Investment Analytics", Description = "Advanced investment analytics with sector-wise breakdowns.", Category = "Investments", IsActive = true, SortOrder = 23, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000022"), FeatureKey = "investment_returns_tracking", DisplayName = "Returns & ROI Tracking", Description = "Track investment returns and calculate ROI over time.", Category = "Investments", IsActive = true, SortOrder = 24, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000023"), FeatureKey = "budget_planning", DisplayName = "Budget Planning", Description = "Create and manage monthly budgets with category-wise limits.", Category = "Budgeting", IsActive = true, SortOrder = 25, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000024"), FeatureKey = "transaction_insights", DisplayName = "AI Spending Insights", Description = "AI-powered analysis of spending patterns and saving suggestions.", Category = "Analytics", IsActive = true, SortOrder = 26, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000025"), FeatureKey = "goal_recommendations", DisplayName = "Goal Recommendations", Description = "Smart goal suggestions based on your financial habits.", Category = "Goals", IsActive = true, SortOrder = 27, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000026"), FeatureKey = "multi_currency", DisplayName = "Multi-Currency Support", Description = "Track finances in multiple currencies with auto-conversion.", Category = "Finance", IsActive = true, SortOrder = 28, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+
+                    // ── Pro-Only Features ──
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000014"), FeatureKey = "ai_suggestions", DisplayName = "AI Suggestions", Description = "AI-powered financial insights and recommendations.", Category = "AI", IsActive = true, SortOrder = 30, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000015"), FeatureKey = "user_management", DisplayName = "User Management", Description = "Admin: manage users, roles, and permissions.", Category = "Admin", IsActive = true, SortOrder = 31, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000027"), FeatureKey = "portfolio_management", DisplayName = "Portfolio Management", Description = "Advanced portfolio management with allocation and rebalancing.", Category = "Investments", IsActive = true, SortOrder = 32, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000028"), FeatureKey = "tax_reports", DisplayName = "Tax Reports & Summaries", Description = "Generate tax-ready reports with capital gains and deductions.", Category = "Reports", IsActive = true, SortOrder = 33, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000029"), FeatureKey = "api_access", DisplayName = "API Access", Description = "Programmatic access to your financial data via REST API.", Category = "Developer", IsActive = true, SortOrder = 34, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000030"), FeatureKey = "priority_support", DisplayName = "Priority Support", Description = "Get priority customer support with faster response times.", Category = "Support", IsActive = true, SortOrder = 35, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new Feature { Id = new Guid("b0000000-0000-0000-0000-000000000031"), FeatureKey = "audit_log", DisplayName = "Full Audit Log", Description = "View complete security and activity audit trail.", Category = "Security", IsActive = true, SortOrder = 36, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
                 );
             });
         }
@@ -364,9 +396,9 @@ namespace FinancialApplication.Infrastructure.Data
 
                 // Seed data — Plan-Feature mappings
                 // Plan GUIDs: Free=...0001, Basic=...0002, Advanced=...0003, Pro=...0004
-                // Feature GUIDs: b0000000-...-000000000001 through ...000000000015
+                // Feature GUIDs: b0000000-...-000000000001 through ...000000000031
 
-                // FREE plan: dashboard, transactions, news, profile, security_settings, onboarding (6 features)
+                // FREE plan (8 features): dashboard, transactions, news, profile, security_settings, onboarding, goals_basic, notifications
                 entity.HasData(
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0001-000000000001"), PlanId = new Guid("a0000000-0000-0000-0000-000000000001"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000001"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0001-000000000002"), PlanId = new Guid("a0000000-0000-0000-0000-000000000001"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000002"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
@@ -374,8 +406,10 @@ namespace FinancialApplication.Infrastructure.Data
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0001-000000000004"), PlanId = new Guid("a0000000-0000-0000-0000-000000000001"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000004"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0001-000000000005"), PlanId = new Guid("a0000000-0000-0000-0000-000000000001"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000005"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0001-000000000006"), PlanId = new Guid("a0000000-0000-0000-0000-000000000001"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000006"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0001-000000000007"), PlanId = new Guid("a0000000-0000-0000-0000-000000000001"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000016"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0001-000000000008"), PlanId = new Guid("a0000000-0000-0000-0000-000000000001"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000017"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
 
-                    // BASIC plan: Free features + analytics, investment_tracking, cards (9 features)
+                    // BASIC plan (15 features): Free features + analytics, investment_tracking, cards, goals_unlimited, recurring_transactions, transaction_categories, export_csv
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000001"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000001"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000002"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000002"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000003"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000003"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
@@ -385,8 +419,14 @@ namespace FinancialApplication.Infrastructure.Data
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000007"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000007"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000008"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000008"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000009"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000009"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000010"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000016"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000011"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000017"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000012"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000018"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000013"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000019"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000014"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000020"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0002-000000000015"), PlanId = new Guid("a0000000-0000-0000-0000-000000000002"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000012"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
 
-                    // ADVANCED plan: Basic features + reports, export_pdf, export_csv, premium_analytics (13 features)
+                    // ADVANCED plan (22 features): Basic features + reports, export_pdf, premium_analytics, investment_analytics, investment_returns_tracking, budget_planning, transaction_insights, goal_recommendations, multi_currency
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000001"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000001"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000002"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000002"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000003"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000003"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
@@ -400,8 +440,19 @@ namespace FinancialApplication.Infrastructure.Data
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000011"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000011"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000012"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000012"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000013"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000013"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000014"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000016"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000015"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000017"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000016"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000018"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000017"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000019"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000018"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000020"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000019"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000021"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000020"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000022"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000021"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000023"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000022"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000024"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000023"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000025"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0003-000000000024"), PlanId = new Guid("a0000000-0000-0000-0000-000000000003"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000026"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
 
-                    // PRO plan: ALL 15 features
+                    // PRO plan: ALL 27 features (Advanced + ai_suggestions, user_management, portfolio_management, tax_reports, api_access, priority_support, audit_log)
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000001"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000001"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000002"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000002"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000003"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000003"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
@@ -416,7 +467,23 @@ namespace FinancialApplication.Infrastructure.Data
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000012"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000012"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000013"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000013"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                     new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000014"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000014"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000015"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000015"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000015"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000015"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000016"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000016"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000017"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000017"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000018"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000018"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000019"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000019"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000020"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000020"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000021"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000021"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000022"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000022"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000023"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000023"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000024"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000024"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000025"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000025"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000026"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000026"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000027"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000027"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000028"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000028"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000029"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000029"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000030"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000030"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                    new PlanFeature { Id = new Guid("c0000000-0000-0000-0004-000000000031"), PlanId = new Guid("a0000000-0000-0000-0000-000000000004"), FeatureId = new Guid("b0000000-0000-0000-0000-000000000031"), CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
                 );
             });
         }
@@ -743,6 +810,68 @@ namespace FinancialApplication.Infrastructure.Data
 
                 entity.Property(b => b.CreatedAt)
                       .HasDefaultValueSql("SYSUTCDATETIME()");
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // PORTFOLIO ASSET CONFIGURATION
+        // ════════════════════════════════════════════════════════════════════
+        private static void ConfigurePortfolioAsset(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<PortfolioAsset>(entity =>
+            {
+                entity.HasKey(e => e.PortfolioAssetId);
+
+                entity.ToTable("PortfolioAssets");
+
+                // Performance index on UserId for user-scoped queries
+                entity.HasIndex(e => e.UserId);
+
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.AssetType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.InvestedAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CurrentValue).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.AllocationPercentage).HasColumnType("decimal(5,2)");
+                entity.Property(e => e.Color).HasMaxLength(10);
+                entity.Property(e => e.Notes).HasMaxLength(500);
+                entity.Property(e => e.Currency).IsRequired().HasMaxLength(10).HasDefaultValue("INR");
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // TAX ENTRY CONFIGURATION
+        // ════════════════════════════════════════════════════════════════════
+        private static void ConfigureTaxEntry(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TaxEntry>(entity =>
+            {
+                entity.HasKey(e => e.TaxEntryId);
+
+                entity.ToTable("TaxEntries");
+
+                // Composite index on UserId + FinancialYear for FY-scoped queries
+                entity.HasIndex(e => new { e.UserId, e.FinancialYear });
+
+                entity.Property(e => e.FinancialYear).IsRequired().HasMaxLength(10);
+                entity.Property(e => e.Category).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Description).HasMaxLength(500);
+                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.EntryType).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.Section).HasMaxLength(20);
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
