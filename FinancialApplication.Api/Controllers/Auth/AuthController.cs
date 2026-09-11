@@ -1,24 +1,57 @@
+using Azure;
 using FinancialApp.Infrastructure.DTOs;
 using FinancialApp.Infrastructure.Interfaces;
 using FinancialApplication.Application.DTOs;
 using FinancialApplication.Application.Interfaces;
+using FinancialApplication.Domain.Domain.Entity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
+using static Google.Apis.Requests.BatchRequest;
 
 namespace FinancialApplication.Api.Controllers.Auth
 {
+    [EnableRateLimiting("Auth")]
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
         private readonly ISubscriptionService _subscriptionService;
+        private readonly IWebHostEnvironment _env;
 
-        public AuthController(IAuthService authService, ISubscriptionService subscriptionService)
+        public AuthController(IAuthService authService, ISubscriptionService subscriptionService, IWebHostEnvironment env)
         {
             _authService = authService;
             _subscriptionService = subscriptionService;
+            _env = env;
+        }
+
+        /// <summary>
+        /// Build cookie options that work in both Development (HTTP) and Production (HTTPS).
+        /// </summary>
+        private CookieOptions BuildAuthCookieOptions(TimeSpan expiry)
+        {
+            var isDev = _env.IsDevelopment();
+            return new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !isDev,
+                SameSite = isDev ? SameSiteMode.Lax : SameSiteMode.None,
+                Expires = DateTime.UtcNow.Add(expiry)
+            };
+        }
+
+        private CookieOptions BuildDeleteCookieOptions()
+        {
+            var isDev = _env.IsDevelopment();
+            return new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !isDev,
+                SameSite = isDev ? SameSiteMode.Lax : SameSiteMode.None
+            };
         }
 
         /// <summary>
@@ -58,7 +91,7 @@ namespace FinancialApplication.Api.Controllers.Auth
             catch (UnauthorizedAccessException ex)
             {
                 return Unauthorized(new 
-                { 
+                {
                     isAuthenticated = false, 
                     message = ex.Message 
                 });
@@ -78,24 +111,12 @@ namespace FinancialApplication.Api.Controllers.Auth
             {
                 var result = await _authService.VerifyTotpAndLoginAsync(request);
 
-                // Set auth cookies (same as the previous login flow)
-                Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = DateTime.UtcNow.AddHours(1)
-                });
+                // Set auth cookies (environment-aware)
+                Response.Cookies.Append("authToken", result.AccessToken, BuildAuthCookieOptions(TimeSpan.FromHours(1)));
 
                 var refreshTokenExpireDays = Convert.ToInt32(HttpContext.RequestServices
                     .GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()["Jwt:RefreshTokenExpireDays"] ?? "7");
-                Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = DateTime.UtcNow.AddDays(refreshTokenExpireDays)
-                });
+                Response.Cookies.Append("refreshToken", result.RefreshToken, BuildAuthCookieOptions(TimeSpan.FromDays(refreshTokenExpireDays)));
 
                 return Ok(new
                 {
@@ -126,14 +147,8 @@ namespace FinancialApplication.Api.Controllers.Auth
             try
             {
                 var result = await _authService.LoginWithRecoveryCodeAsync(request);
-                Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions
-                {
-                    HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Expires = DateTime.UtcNow.AddHours(1)
-                });
-                Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
-                {
-                    HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Expires = DateTime.UtcNow.AddDays(7)
-                });
+                Response.Cookies.Append("authToken", result.AccessToken, BuildAuthCookieOptions(TimeSpan.FromHours(1)));
+                Response.Cookies.Append("refreshToken", result.RefreshToken, BuildAuthCookieOptions(TimeSpan.FromDays(7)));
                 return Ok(new { isAuthenticated = true, token = result.AccessToken, refreshtoken = result.RefreshToken, expiresIn = result.ExpiresIn, role = result.Role, message = "Login successful" });
             }
             catch (UnauthorizedAccessException ex)
@@ -157,8 +172,8 @@ namespace FinancialApplication.Api.Controllers.Auth
             try
             {
                 var result = await _authService.LoginWithEmailCodeAsync(request);
-                Response.Cookies.Append("authToken", result.AccessToken, new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Expires = DateTime.UtcNow.AddHours(1) });
-                Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Expires = DateTime.UtcNow.AddDays(7) });
+                Response.Cookies.Append("authToken", result.AccessToken, BuildAuthCookieOptions(TimeSpan.FromHours(1)));
+                Response.Cookies.Append("refreshToken", result.RefreshToken, BuildAuthCookieOptions(TimeSpan.FromDays(7)));
                 return Ok(new { isAuthenticated = true, token = result.AccessToken, refreshtoken = result.RefreshToken, expiresIn = result.ExpiresIn, role = result.Role });
             }
             catch (UnauthorizedAccessException ex) { return Unauthorized(new { isAuthenticated = false, message = ex.Message }); }
@@ -248,7 +263,7 @@ namespace FinancialApplication.Api.Controllers.Auth
                         debugInfo = $"Request.Token is: {(request?.Token ?? "null")}"
                     });
                 }  
-                var result = await _authService._Logout(userId, request.Token);
+                var result = await _authService.LogoutAsync(userId, request.Token);
                 if (!result)
                 {
                     return Unauthorized(new 
@@ -257,19 +272,8 @@ namespace FinancialApplication.Api.Controllers.Auth
                         debugInfo = $"UserId: {userId}, Token exists in DB: false"
                     });
                 }
-                Response.Cookies.Delete("authToken", new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None
-                });
-
-                Response.Cookies.Delete("refreshToken", new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None
-                });
+                Response.Cookies.Delete("authToken", BuildDeleteCookieOptions());
+                Response.Cookies.Delete("refreshToken", BuildDeleteCookieOptions());
 
                 return Ok(new 
                 { 
@@ -294,6 +298,7 @@ namespace FinancialApplication.Api.Controllers.Auth
              {
                  var token = Request.Cookies["authToken"] ?? 
                             Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+                
 
                  if (string.IsNullOrEmpty(token))
                      return Ok(new { isAuthenticated = false });
@@ -312,9 +317,18 @@ namespace FinancialApplication.Api.Controllers.Auth
                  string? planSlug = null;
                  string? planName = null;
                  string? subscriptionStatus = null;
+                 string? userName = null;
+                string? Email = null;
+                var userids = claims.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userids, out var userId))
+                {
+                    var response = await _authService.CheckAuth(userId: userId, token);
+                    userName = response.Username;
+                    Email = response.Email;
+                }
 
-                 // If JWT has valid subscription claims, use them
-                 if (!string.IsNullOrEmpty(planIdClaim) && planIdClaim != "none")
+                // If JWT has valid subscription claims, use them
+                if (!string.IsNullOrEmpty(planIdClaim) && planIdClaim != "none")
                  {
                      planId = planIdClaim;
                      planSlug = planSlugClaim != "none" ? planSlugClaim : null;
@@ -322,9 +336,11 @@ namespace FinancialApplication.Api.Controllers.Auth
 
                      // Load planName from the subscription service (lightweight DB call)
                      var userIdStr = claims.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                     if (Guid.TryParse(userIdStr, out var userId))
+                     if (Guid.TryParse(userIdStr, out var userIds))
                      {
-                         var sub = await _subscriptionService.GetCurrentSubscriptionAsync(userId);
+                         var sub = await _subscriptionService.GetCurrentSubscriptionAsync(userIds);
+                        var resp = await _authService.CheckAuth(userIds, token);
+                       
                          if (sub != null)
                          {
                              planName = sub.PlanName;
@@ -332,32 +348,40 @@ namespace FinancialApplication.Api.Controllers.Auth
                              planId = sub.PlanId.ToString();
                              planSlug = sub.PlanSlug;
                              subscriptionStatus = sub.StatusName;
-                         }
+                            userName = resp.Username;
+                            Email = resp.Email;
+
+                        }
                      }
                  }
                  else
                  {
                      // Fallback: JWT may not have subscription claims yet (token issued before Phase 8)
                      var userIdStr = claims.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                     if (Guid.TryParse(userIdStr, out var userId))
+
+                     if (Guid.TryParse(userIdStr, out var userIdt))
                      {
-                         var sub = await _subscriptionService.GetCurrentSubscriptionAsync(userId);
-                         if (sub != null)
+                         var sub = await _subscriptionService.GetCurrentSubscriptionAsync(userIdt);
+                        var resp = await _authService.CheckAuth(userIdt, token);
+                        if (sub != null)
                          {
                              planId = sub.PlanId.ToString();
                              planSlug = sub.PlanSlug;
                              planName = sub.PlanName;
                              subscriptionStatus = sub.StatusName;
-                         }
+                            userName = resp.Username;
+                            Email = resp.Email;
+                        }
                      }
                  }
 
                  return Ok(new
                  {
                      isAuthenticated = true,
-                     user = claims.FindFirst(ClaimTypes.Email)?.Value,
+                     user = userName,
                      userId = claims.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                      role = claims.FindFirst(ClaimTypes.Role)?.Value,
+                    Email,
                      // Subscription fields (Phase 8 — additive, backward-compatible)
                      planId,
                      planSlug,
@@ -398,5 +422,43 @@ namespace FinancialApplication.Api.Controllers.Auth
                   return BadRequest(new { message = ex.Message });
               }
           }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Password Reset Flow
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Initiates a password reset by sending a reset link to the user's email.
+        /// Always returns 200 OK to prevent email enumeration attacks.
+        /// </summary>
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            await _authService.ForgotPasswordAsync(request.Email);
+
+            // Always return success to prevent email enumeration
+            return Ok(new { message = "If an account with that email exists, a password reset link has been sent." });
+        }
+
+        /// <summary>
+        /// Resets the user's password using the token received via email.
+        /// </summary>
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _authService.ResetPasswordAsync(request);
+            if (!result)
+                return BadRequest(new { message = "Invalid or expired reset token." });
+
+            return Ok(new { message = "Password has been reset successfully. Please log in with your new password." });
+        }
     }
 }

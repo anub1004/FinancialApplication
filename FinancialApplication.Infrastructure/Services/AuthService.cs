@@ -171,7 +171,9 @@ namespace FinancialApp.Infrastructure.Services
                     qrCodeBase64,
                     manualEntryKey = totpSecret,
                     totpSessionToken,
-                    email = user.Email
+                    email = user.Email,
+                    name=user.Username
+                   
                 };
             }
 
@@ -187,16 +189,19 @@ namespace FinancialApp.Infrastructure.Services
                     qrCodeBase64,
                     manualEntryKey = user.TotpSecret,
                     totpSessionToken,
-                    email = user.Email
+                    email = user.Email,
+                    name = user.Username
                 };
             }
 
+            
             return new
             {
                 totpRequired = true,
                 totpSetupRequired = false,
                 totpSessionToken,
-                email = user.Email
+                email = user.Email,
+                name = user.Username
             };
         }
 
@@ -525,7 +530,7 @@ namespace FinancialApp.Infrastructure.Services
             return await Task.FromResult(false);
         }
 
-        public async Task<bool> _Logout(Guid userId, string token)
+        public async Task<bool> LogoutAsync(Guid userId, string token)
         {
             if (string.IsNullOrWhiteSpace(token))
             {
@@ -566,7 +571,10 @@ namespace FinancialApp.Infrastructure.Services
             return new AuthDto
             {
                 UserId = user.Id,
-                user = user.Username,
+                Username = user.Username,
+                Email = user.Email,
+
+
                 role = user.Role != null ? user.Role.Name : "User"
             };
         }
@@ -856,6 +864,138 @@ using var message = new MailMessage(from, recipient)
                 qrCodeBase64,
                 manualEntryKey = user.TotpSecret
             };
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Password Reset Flow
+        // ─────────────────────────────────────────────────────────────────────
+
+        public async Task ForgotPasswordAsync(string email)
+        {
+            // Always complete silently to prevent email enumeration
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
+            if (user == null)
+                return;
+
+            // Invalidate any existing unused tokens for this user
+            var existingTokens = await _context.PasswordResetTokens
+                .Where(t => t.UserId == user.Id && !t.IsUsed && t.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync();
+
+            foreach (var t in existingTokens)
+                t.IsUsed = true;
+
+            // Generate a cryptographically secure token
+            var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
+
+            var resetToken = new PasswordResetToken
+            {
+                UserId = user.Id,
+                TokenHash = tokenHash,
+                ExpiresAt = DateTime.UtcNow.AddHours(1),
+                IsUsed = false
+            };
+
+            _context.PasswordResetTokens.Add(resetToken);
+            await _context.SaveChangesAsync();
+
+            // Send the email with the raw (unhashed) token
+            await SendPasswordResetEmailAsync(email, rawToken);
+        }
+
+        public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email && u.IsActive);
+            if (user == null)
+                return false;
+
+            // Hash the submitted token and look it up
+            var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(dto.Token)));
+
+            var resetToken = await _context.PasswordResetTokens
+                .FirstOrDefaultAsync(t =>
+                    t.UserId == user.Id &&
+                    t.TokenHash == tokenHash &&
+                    !t.IsUsed &&
+                    t.ExpiresAt > DateTime.UtcNow);
+
+            if (resetToken == null)
+                return false;
+
+            // Mark token as used
+            resetToken.IsUsed = true;
+
+            // Update the password
+            user.Password = _passwordHasher.HashPassword(dto.NewPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // Revoke all refresh tokens for security
+            var refreshTokens = await _context.RefreshTokens
+                .Where(rt => rt.UserId == user.Id)
+                .ToListAsync();
+            _context.RefreshTokens.RemoveRange(refreshTokens);
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        private async Task SendPasswordResetEmailAsync(string recipient, string token)
+        {
+            var host = _configuration["Smtp:Host"]?.Trim();
+            var from = _configuration["Smtp:From"]?.Trim();
+            var username = _configuration["Smtp:Username"]?.Trim();
+            var password = _configuration["Smtp:Password"]?.Trim();
+
+            if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(from))
+                throw new InvalidOperationException("SMTP is not configured.");
+
+            var port = int.TryParse(_configuration["Smtp:Port"], out var parsedPort) ? parsedPort : 587;
+            var enableSsl = bool.TryParse(_configuration["Smtp:EnableSsl"], out var ssl) ? ssl : true;
+
+            using var client = new SmtpClient(host, port)
+            {
+                EnableSsl = enableSsl,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(username, password)
+            };
+
+            // URL-encode the token for safe embedding in a link
+            var encodedToken = Uri.EscapeDataString(token);
+            var encodedEmail = Uri.EscapeDataString(recipient);
+            var resetLink = $"http://localhost:5173/reset-password?token={encodedToken}&email={encodedEmail}";
+
+            using var message = new MailMessage(from, recipient)
+            {
+                Subject = "Reset Your Password — Financial Management",
+                IsBodyHtml = true,
+                Body = $@"
+    <div style='font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;'>
+        <div style='background-color: #2563eb; color: white; padding: 20px; text-align: center;'>
+            <h2 style='margin: 0;'>Financial Management</h2>
+        </div>
+        <div style='padding: 24px; color: #374151; line-height: 1.6;'>
+            <p>Hello,</p>
+            <p>We received a request to reset your password for your <strong>Financial Management</strong> account.</p>
+            <p>Click the button below to set a new password:</p>
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='{resetLink}'
+                   style='display: inline-block; padding: 14px 32px; background-color: #2563eb; color: white; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 16px;'>
+                    Reset Password
+                </a>
+            </div>
+            <p>This link is valid for <strong>1 hour</strong> and can be used only once.</p>
+            <p style='color: #9ca3af; font-size: 13px;'>
+                If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+            </p>
+        </div>
+        <div style='background-color: #f9fafb; padding: 16px; text-align: center; font-size: 12px; color: #9ca3af;'>
+            © {DateTime.UtcNow.Year} Financial Management. All rights reserved.
+        </div>
+    </div>"
+            };
+
+            await client.SendMailAsync(message);
         }
     }
 }

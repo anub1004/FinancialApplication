@@ -48,7 +48,6 @@ namespace FinancialApplication.Infrastructure.Services
         {
             try
             {
-                // ── Step 1: Scrape the page for an image URL ────────────────────
                 var html = await client.GetStringAsync(url);
                 var doc = new HtmlDocument();
                 doc.LoadHtml(html);
@@ -87,7 +86,7 @@ namespace FinancialApplication.Infrastructure.Services
                     imageUrl = new Uri(new Uri(url), imageUrl).ToString();
                 }
 
-                // ── Step 2: Check if we already have this image in DB ──────────
+
                 var existingBanner = await _dbContext.Banners
                     .FirstOrDefaultAsync(b => b.OriginalUrl == imageUrl);
 

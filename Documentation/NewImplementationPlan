@@ -1,0 +1,173 @@
+# Implementation Plan — Small Phases
+
+## Overview
+Break the full roadmap into 6 small, independently-shippable phases. Each phase is scoped to a few files and can be built+tested before moving on.
+
+---
+
+## Phase 1A: Security Hardening & Code Quality (First)
+
+Adds global exception handling, rate limiting, and fixes code quality issues that affect all users.
+
+### [NEW] Middleware/GlobalExceptionMiddleware.cs
+- Catches all unhandled exceptions
+- Returns standardized JSON error responses (`{ error, statusCode, traceId }`)
+- Logs full exception details server-side, returns safe messages to clients
+- Registered in `Program.cs`
+
+### [MODIFY] [Program.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/Program.cs)
+- Add `Microsoft.AspNetCore.RateLimiting` with fixed-window limiter (100 req/min general, 10 req/min for auth endpoints)
+- Make CORS origins configurable via `appsettings.json` instead of hardcoded `localhost:5173`
+- Replace `Console.WriteLine` in JWT events with `ILogger`
+- Register the global exception middleware
+
+### [MODIFY] [appsettings.json](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/appsettings.json)
+- Add `AllowedOrigins` array for CORS
+- Add `RateLimiting` section
+
+### Code Quality Fixes (in same phase):
+- Rename `_Logout` → `LogoutAsync` in [IAuthService.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Application/Interfaces/IAuthService.cs) and its implementation
+- Fix `RefereshToken` → `RefreshToken` typo across file names and class references
+- Rename `Transaction.cs.cs` → `Transaction.cs`
+
+---
+
+## Phase 1B: Password Reset Flow
+
+Currently there's no way for users to recover their account if they forget their password.
+
+### [NEW] Application/DTOs/ForgotPasswordDto.cs
+- `ForgotPasswordRequestDto` (Email)
+- `ResetPasswordDto` (Email, Token, NewPassword)
+
+### [MODIFY] [IAuthService.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Application/Interfaces/IAuthService.cs)
+- Add `Task ForgotPasswordAsync(string email)`
+- Add `Task<bool> ResetPasswordAsync(ResetPasswordDto dto)`
+
+### [MODIFY] [AuthService.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Infrastructure/Services/AuthService.cs)
+- Implement `ForgotPasswordAsync` — generates time-limited token, sends email with reset link
+- Implement `ResetPasswordAsync` — validates token, updates password hash
+
+### [NEW] Domain/Entity/PasswordResetToken.cs
+- `Id`, `UserId`, `Token`, `ExpiresAt`, `IsUsed`, `CreatedAt`
+
+### [MODIFY] [AuthController.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/Controllers/Auth/AuthController.cs)
+- Add `POST /api/auth/forgot-password`
+- Add `POST /api/auth/reset-password`
+
+### [MODIFY] [AppDbContext.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Infrastructure/Data/AppDbContext.cs)
+- Add `DbSet<PasswordResetToken>` and configuration
+
+---
+
+## Phase 1C: Health Checks & Structured Logging
+
+### [MODIFY] [Program.cs](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/Program.cs)
+- Add `AspNetCore.HealthChecks.SqlServer` for DB health
+- Map `/health` endpoint
+- Add Serilog with file + console sinks (replace default logging)
+
+### [MODIFY] [FinancialApplication.Api.csproj](file:///c:/Users/samar/source/repos/FinancialApplication/FinancialApplication.Api/FinancialApplication.Api.csproj)
+- Add Serilog and HealthChecks NuGet packages
+
+---
+
+## Phase 2A: Budget System
+
+The most-expected feature in a financial app.
+
+### [NEW] Domain/Entity/Budget.cs
+- `Id`, `UserId`, `Category`, `MonthlyLimit`, `AlertThresholdPercent`, `Month`, `Year`, `CreatedAt`, `UpdatedAt`
+
+### [NEW] Application/DTOs/Budget/BudgetDtos.cs
+- `BudgetDto`, `CreateBudgetDto`, `UpdateBudgetDto`, `BudgetAlertDto`, `BudgetSummaryDto`
+
+### [NEW] Application/Interfaces/IBudgetService.cs
+- CRUD + `GetBudgetAlertsAsync` + `GetBudgetSummaryAsync`
+
+### [NEW] Infrastructure/Services/BudgetService.cs
+- Full implementation with category-level spending tracking against limits
+- Cross-references `Transactions` table for actual spending
+
+### [NEW] Api/Controllers/BudgetController.cs
+- `POST /api/budgets`
+- `GET /api/budgets?month=9&year=2026`
+- `PUT /api/budgets/{id}`
+- `DELETE /api/budgets/{id}`
+- `GET /api/budgets/alerts`
+- `GET /api/budgets/summary`
+
+### [MODIFY] AppDbContext.cs
+- Add `DbSet<Budget>` and configuration
+
+### [MODIFY] Program.cs
+- Register `IBudgetService`
+
+---
+
+## Phase 2B: Notification System
+
+### [NEW] Domain/Entity/Notification.cs
+- `Id`, `UserId`, `Type` (enum), `Title`, `Message`, `IsRead`, `CreatedAt`
+
+### [NEW] Application/DTOs/NotificationDto.cs
+
+### [NEW] Application/Interfaces/INotificationService.cs
+- `GetUnreadAsync`, `GetAllAsync`, `MarkAsReadAsync`, `MarkAllAsReadAsync`, `CreateAsync`
+
+### [NEW] Infrastructure/Services/NotificationService.cs
+
+### [NEW] Api/Controllers/NotificationController.cs
+- `GET /api/notifications`
+- `GET /api/notifications/unread-count`
+- `PATCH /api/notifications/{id}/read`
+- `PATCH /api/notifications/read-all`
+
+---
+
+## Phase 2C: Data Export
+
+### [NEW] Application/Interfaces/IExportService.cs
+- `ExportTransactionsCsvAsync`, `ExportTransactionsExcelAsync`, `ExportInvestmentsCsvAsync`
+
+### [NEW] Infrastructure/Services/ExportService.cs
+- CSV generation using `CsvHelper`
+- Excel generation using `ClosedXML`
+
+### [NEW] Api/Controllers/ExportController.cs
+- `GET /api/export/transactions?format=csv&from=...&to=...`
+- `GET /api/export/investments?format=excel`
+- `GET /api/export/portfolio?format=csv`
+
+---
+
+## Execution Order
+
+| Phase | Scope | Estimated Files |
+|-------|-------|----------------|
+| **1A** | Security + code quality | ~6 files modified/created |
+| **1B** | Password reset | ~6 files modified/created |
+| **1C** | Health + logging | ~3 files modified |
+| **2A** | Budget system | ~7 files created/modified |
+| **2B** | Notifications | ~5 files created/modified |
+| **2C** | Data export | ~4 files created/modified |
+
+## Open Questions
+
+> [!IMPORTANT]
+> **Rate Limiting**: Should auth endpoints (login, register, forgot-password) have a stricter limit like 5 req/min, or is 10 req/min fine?
+
+> [!IMPORTANT]
+> **Budget Alerts**: Should budget alerts trigger in-app notifications automatically (linking Phase 2A → 2B), or keep them independent for now?
+
+## Verification Plan
+
+### After Each Phase
+- `dotnet build` — zero errors
+- `dotnet test` — all existing tests still pass
+- Manual Swagger testing of new endpoints
+
+### Automated Tests
+```bash
+dotnet test --verbosity normal
+```

@@ -373,7 +373,6 @@ namespace FinancialApplication.Infrastructure.Services
             if (user == null)
                 throw new KeyNotFoundException($"User with ID {userId} not found.");
 
-            // Soft delete — preserve referential integrity
             user.IsActive  = false;
             user.UpdatedAt = DateTime.UtcNow;
             _context.Users.Update(user);

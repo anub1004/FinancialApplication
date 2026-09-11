@@ -48,6 +48,24 @@ namespace FinancialApplication.Api.Controllers
             return BuildResponse(cachedData, page, pageSize, search);
         }
 
+        /// <summary>
+        /// Clears the finance news cache and reloads fresh data from DB immediately.
+        /// Called by NewsDataUpdateService after inserting new articles.
+        /// </summary>
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshCache()
+        {
+            _cache.Remove(NewsCacheWarmupService.FinanceNewsCacheKey);
+            var data = await LoadAndCacheAsync();
+            return Ok(new
+            {
+                success = true,
+                articleCount = data?.ArticleCount ?? 0,
+                message = data == null ? "No articles found in DB." : $"Cache refreshed with {data.ArticleCount} articles."
+            });
+        }
+
+
         private async Task<CachedNewsData?> LoadAndCacheAsync()
         {
             var record = await _dbContext.FinanceNewsArticles

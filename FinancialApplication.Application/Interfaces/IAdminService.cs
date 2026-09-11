@@ -9,13 +9,12 @@ namespace FinancialApplication.Application.Interfaces
 {
    public interface IAdminService
     {
-        // Existing role management
+       
         Task<string> AssignRoleAsync(Guid userId, string roleName);
         Task<string> RevokeRoleAsync(Guid userId, string roleName);
         Task<string> DeactivateUserAsync(Guid userId);
         Task<string> ActivateUserAsync(Guid userId);
 
-        // ── User Management (new) ────────────────────────────────────────────
         Task<(List<AdminUserDto> Users, int TotalCount)> GetAllUsersAsync(
             string? search, string? role, bool? isActive,
             string sortBy, string sortOrder, int page, int pageSize);

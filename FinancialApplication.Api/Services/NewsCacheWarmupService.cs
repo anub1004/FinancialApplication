@@ -19,15 +19,15 @@ namespace FinancialApplication.Api.Services
         private readonly IMemoryCache _cache;
         private readonly ILogger<NewsCacheWarmupService> _logger;
 
-        // Shared cache keys — used by both this service and the controllers
+       
         public const string FinanceNewsCacheKey = "FinanceNews_Cached";
         public const string TodayNewsCacheKey = "TodayNews_Cached";
 
-        // Cache for 10 minutes — news update job runs every 6 hours
-        public static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
+        
+        public static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(6);
 
-        // How often to refresh the cache in the background
-        private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(5);
+        
+        private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(3);
 
         public NewsCacheWarmupService(
             IServiceScopeFactory scopeFactory,
@@ -39,12 +39,14 @@ namespace FinancialApplication.Api.Services
             _logger = logger;
         }
 
+        
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Warm cache immediately on startup
+           
             await WarmCacheAsync(stoppingToken);
 
-            // Periodically refresh the cache in the background
+            
             while (!stoppingToken.IsCancellationRequested)
             {
                 await Task.Delay(RefreshInterval, stoppingToken);

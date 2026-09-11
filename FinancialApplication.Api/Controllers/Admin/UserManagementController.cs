@@ -32,10 +32,7 @@ namespace FinancialApplication.Api.Controllers.Admin
             _context = context;
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /api/admin/users
-        // ─────────────────────────────────────────────────────────────────────
-
+     
         /// <summary>
         /// Returns a paginated list of all users with optional search, filter, and sort.
         /// Query params: search, role, isActive, sortBy, sortOrder, page, pageSize.
@@ -69,9 +66,7 @@ namespace FinancialApplication.Api.Controllers.Admin
             });
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /api/admin/users/stats
-        // ─────────────────────────────────────────────────────────────────────
+      
 
         /// <summary>
         /// Returns aggregate user statistics for admin dashboard header cards.
@@ -86,10 +81,7 @@ namespace FinancialApplication.Api.Controllers.Admin
             return Ok(stats);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /api/admin/users/{id}
-        // ─────────────────────────────────────────────────────────────────────
-
+    
         /// <summary>
         /// Returns detailed information for a single user including subscriptions and payment summary.
         /// </summary>
@@ -107,10 +99,7 @@ namespace FinancialApplication.Api.Controllers.Admin
             return Ok(detail);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // PATCH /api/admin/users/{id}/status
-        // ─────────────────────────────────────────────────────────────────────
-
+       
         /// <summary>
         /// Enables or disables a user account.
         /// </summary>
@@ -141,10 +130,7 @@ namespace FinancialApplication.Api.Controllers.Admin
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // PATCH /api/admin/users/{id}/role
-        // ─────────────────────────────────────────────────────────────────────
-
+       
         /// <summary>
         /// Changes a user's role.
         /// </summary>
@@ -179,10 +165,7 @@ namespace FinancialApplication.Api.Controllers.Admin
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // DELETE /api/admin/users/{id}
-        // ─────────────────────────────────────────────────────────────────────
-
+       
         /// <summary>
         /// Soft-deletes a user (sets IsActive = false).
         /// </summary>
@@ -204,10 +187,7 @@ namespace FinancialApplication.Api.Controllers.Admin
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /api/admin/users/roles
-        // ─────────────────────────────────────────────────────────────────────
-
+       
         /// <summary>
         /// Returns all available roles (for dropdown menus in the frontend).
         /// </summary>
@@ -231,10 +211,7 @@ namespace FinancialApplication.Api.Controllers.Admin
             return Ok(roles);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /api/admin/users/export
-        // ─────────────────────────────────────────────────────────────────────
-
+      
         /// <summary>
         /// Exports all users as a CSV file for download.
         /// Supports the same search/filter params as GetAllUsers.

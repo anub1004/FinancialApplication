@@ -40,9 +40,21 @@ namespace FinancialApplication.Infrastructure.Data
         public DbSet<PlanPriceHistory> PlanPriceHistories { get; set; }
         public DbSet<PortfolioAsset> PortfolioAssets { get; set; }
         public DbSet<TaxEntry> TaxEntries { get; set; }
+        public DbSet<Setting> Settings { get; set; }
 
         // ── Banner System DbSet ─────────────────────────────────────────────
         public DbSet<Banner> Banners { get; set; }
+
+        // ── Password Reset ──────────────────────────────────────────────────
+        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+
+        // ── Budget System ───────────────────────────────────────────────────
+        public DbSet<Budget> Budgets { get; set; }
+
+        // ── Notification System ─────────────────────────────────────────────
+        public DbSet<Notification> Notifications { get; set; }
+
+        
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -192,6 +204,12 @@ namespace FinancialApplication.Infrastructure.Data
 
             ConfigurePortfolioAsset(modelBuilder);
             ConfigureTaxEntry(modelBuilder);
+
+            // ════════════════════════════════════════════════════════════════════
+            // NOTIFICATION CONFIGURATION
+            // ════════════════════════════════════════════════════════════════════
+
+            ConfigureNotification(modelBuilder);
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -871,6 +889,38 @@ namespace FinancialApplication.Infrastructure.Data
                 entity.HasOne(e => e.User)
                       .WithMany()
                       .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // NOTIFICATION CONFIGURATION
+        // ════════════════════════════════════════════════════════════════════
+        private static void ConfigureNotification(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(n => n.Id);
+
+                // Composite covering index: supports fast unread-count and
+                // paginated list queries for a user.
+                entity.HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
+
+                // Individual indexes used in admin broadcast history queries
+                entity.HasIndex(n => n.IsGlobal);
+                entity.HasIndex(n => n.CreatedAt);
+
+                entity.Property(n => n.Title).IsRequired().HasMaxLength(200);
+                entity.Property(n => n.Message).IsRequired().HasMaxLength(2000);
+                entity.Property(n => n.Type).IsRequired()
+                      .HasConversion<string>().HasMaxLength(50);
+                entity.Property(n => n.IsRead).HasDefaultValue(false);
+                entity.Property(n => n.IsGlobal).HasDefaultValue(false);
+                entity.Property(n => n.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+
+                entity.HasOne(n => n.User)
+                      .WithMany()
+                      .HasForeignKey(n => n.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
         }

@@ -108,6 +108,50 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.ToTable("Banners");
                 });
 
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Budget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AlertThresholdPercent")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MonthlyLimit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Budgets");
+                });
+
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.EmailLoginCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -265,6 +309,30 @@ namespace FinancialApplication.Infrastructure.Migrations
                         },
                         new
                         {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000016"),
+                            Category = "Goals",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Set and track basic financial savings goals.",
+                            DisplayName = "Basic Goals",
+                            FeatureKey = "goals_basic",
+                            IsActive = true,
+                            SortOrder = 7,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000017"),
+                            Category = "Core",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Receive alerts for transactions, goals, and account activity.",
+                            DisplayName = "Notifications",
+                            FeatureKey = "notifications",
+                            IsActive = true,
+                            SortOrder = 8,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
                             Id = new Guid("b0000000-0000-0000-0000-000000000007"),
                             Category = "Analytics",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -272,7 +340,7 @@ namespace FinancialApplication.Infrastructure.Migrations
                             DisplayName = "Analytics",
                             FeatureKey = "analytics",
                             IsActive = true,
-                            SortOrder = 7,
+                            SortOrder = 10,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -284,7 +352,7 @@ namespace FinancialApplication.Infrastructure.Migrations
                             DisplayName = "Investment Tracking",
                             FeatureKey = "investment_tracking",
                             IsActive = true,
-                            SortOrder = 8,
+                            SortOrder = 11,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -296,31 +364,43 @@ namespace FinancialApplication.Infrastructure.Migrations
                             DisplayName = "Cards Management",
                             FeatureKey = "cards",
                             IsActive = true,
-                            SortOrder = 9,
+                            SortOrder = 12,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
-                            Id = new Guid("b0000000-0000-0000-0000-000000000010"),
-                            Category = "Reports",
+                            Id = new Guid("b0000000-0000-0000-0000-000000000018"),
+                            Category = "Goals",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Generate financial reports and summaries.",
-                            DisplayName = "Reports",
-                            FeatureKey = "reports",
+                            Description = "Create unlimited financial goals with no restrictions.",
+                            DisplayName = "Unlimited Goals",
+                            FeatureKey = "goals_unlimited",
                             IsActive = true,
-                            SortOrder = 10,
+                            SortOrder = 13,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
-                            Id = new Guid("b0000000-0000-0000-0000-000000000011"),
-                            Category = "Reports",
+                            Id = new Guid("b0000000-0000-0000-0000-000000000019"),
+                            Category = "Transactions",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Export reports and data as PDF documents.",
-                            DisplayName = "Export PDF",
-                            FeatureKey = "export_pdf",
+                            Description = "Set up automatic recurring income and expense entries.",
+                            DisplayName = "Recurring Transactions",
+                            FeatureKey = "recurring_transactions",
                             IsActive = true,
-                            SortOrder = 11,
+                            SortOrder = 14,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000020"),
+                            Category = "Transactions",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Create custom transaction categories for better organization.",
+                            DisplayName = "Custom Categories",
+                            FeatureKey = "transaction_categories",
+                            IsActive = true,
+                            SortOrder = 15,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -332,7 +412,31 @@ namespace FinancialApplication.Infrastructure.Migrations
                             DisplayName = "Export CSV",
                             FeatureKey = "export_csv",
                             IsActive = true,
-                            SortOrder = 12,
+                            SortOrder = 16,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000010"),
+                            Category = "Reports",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Generate financial reports and summaries.",
+                            DisplayName = "Reports",
+                            FeatureKey = "reports",
+                            IsActive = true,
+                            SortOrder = 20,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000011"),
+                            Category = "Reports",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Export reports and data as PDF documents.",
+                            DisplayName = "Export PDF",
+                            FeatureKey = "export_pdf",
+                            IsActive = true,
+                            SortOrder = 21,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -344,7 +448,79 @@ namespace FinancialApplication.Infrastructure.Migrations
                             DisplayName = "Premium Analytics",
                             FeatureKey = "premium_analytics",
                             IsActive = true,
-                            SortOrder = 13,
+                            SortOrder = 22,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000021"),
+                            Category = "Investments",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Advanced investment analytics with sector-wise breakdowns.",
+                            DisplayName = "Investment Analytics",
+                            FeatureKey = "investment_analytics",
+                            IsActive = true,
+                            SortOrder = 23,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000022"),
+                            Category = "Investments",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Track investment returns and calculate ROI over time.",
+                            DisplayName = "Returns & ROI Tracking",
+                            FeatureKey = "investment_returns_tracking",
+                            IsActive = true,
+                            SortOrder = 24,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000023"),
+                            Category = "Budgeting",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Create and manage monthly budgets with category-wise limits.",
+                            DisplayName = "Budget Planning",
+                            FeatureKey = "budget_planning",
+                            IsActive = true,
+                            SortOrder = 25,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000024"),
+                            Category = "Analytics",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "AI-powered analysis of spending patterns and saving suggestions.",
+                            DisplayName = "AI Spending Insights",
+                            FeatureKey = "transaction_insights",
+                            IsActive = true,
+                            SortOrder = 26,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000025"),
+                            Category = "Goals",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Smart goal suggestions based on your financial habits.",
+                            DisplayName = "Goal Recommendations",
+                            FeatureKey = "goal_recommendations",
+                            IsActive = true,
+                            SortOrder = 27,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000026"),
+                            Category = "Finance",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Track finances in multiple currencies with auto-conversion.",
+                            DisplayName = "Multi-Currency Support",
+                            FeatureKey = "multi_currency",
+                            IsActive = true,
+                            SortOrder = 28,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -356,7 +532,7 @@ namespace FinancialApplication.Infrastructure.Migrations
                             DisplayName = "AI Suggestions",
                             FeatureKey = "ai_suggestions",
                             IsActive = true,
-                            SortOrder = 14,
+                            SortOrder = 30,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -368,7 +544,67 @@ namespace FinancialApplication.Infrastructure.Migrations
                             DisplayName = "User Management",
                             FeatureKey = "user_management",
                             IsActive = true,
-                            SortOrder = 15,
+                            SortOrder = 31,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000027"),
+                            Category = "Investments",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Advanced portfolio management with allocation and rebalancing.",
+                            DisplayName = "Portfolio Management",
+                            FeatureKey = "portfolio_management",
+                            IsActive = true,
+                            SortOrder = 32,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000028"),
+                            Category = "Reports",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Generate tax-ready reports with capital gains and deductions.",
+                            DisplayName = "Tax Reports & Summaries",
+                            FeatureKey = "tax_reports",
+                            IsActive = true,
+                            SortOrder = 33,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000029"),
+                            Category = "Developer",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Programmatic access to your financial data via REST API.",
+                            DisplayName = "API Access",
+                            FeatureKey = "api_access",
+                            IsActive = true,
+                            SortOrder = 34,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000030"),
+                            Category = "Support",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Get priority customer support with faster response times.",
+                            DisplayName = "Priority Support",
+                            FeatureKey = "priority_support",
+                            IsActive = true,
+                            SortOrder = 35,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000031"),
+                            Category = "Security",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "View complete security and activity audit trail.",
+                            DisplayName = "Full Audit Log",
+                            FeatureKey = "audit_log",
+                            IsActive = true,
+                            SortOrder = 36,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
@@ -618,6 +854,92 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Invoices");
+                });
+
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<bool>("IsGlobal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("RelatedEntityId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IsGlobal");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetTokens");
                 });
 
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Payment", b =>
@@ -935,6 +1257,20 @@ namespace FinancialApplication.Infrastructure.Migrations
                         },
                         new
                         {
+                            Id = new Guid("c0000000-0000-0000-0001-000000000007"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000016"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0001-000000000008"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000017"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
                             Id = new Guid("c0000000-0000-0000-0002-000000000001"),
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             FeatureId = new Guid("b0000000-0000-0000-0000-000000000001"),
@@ -994,6 +1330,48 @@ namespace FinancialApplication.Infrastructure.Migrations
                             Id = new Guid("c0000000-0000-0000-0002-000000000009"),
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             FeatureId = new Guid("b0000000-0000-0000-0000-000000000009"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0002-000000000010"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000016"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0002-000000000011"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000017"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0002-000000000012"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000018"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0002-000000000013"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000019"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0002-000000000014"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000020"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0002-000000000015"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000012"),
                             PlanId = new Guid("a0000000-0000-0000-0000-000000000002")
                         },
                         new
@@ -1085,6 +1463,83 @@ namespace FinancialApplication.Infrastructure.Migrations
                             Id = new Guid("c0000000-0000-0000-0003-000000000013"),
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             FeatureId = new Guid("b0000000-0000-0000-0000-000000000013"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000014"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000016"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000015"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000017"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000016"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000018"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000017"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000019"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000018"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000020"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000019"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000021"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000020"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000022"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000021"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000023"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000022"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000024"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000023"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000025"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0003-000000000024"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000026"),
                             PlanId = new Guid("a0000000-0000-0000-0000-000000000003")
                         },
                         new
@@ -1191,6 +1646,118 @@ namespace FinancialApplication.Infrastructure.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             FeatureId = new Guid("b0000000-0000-0000-0000-000000000015"),
                             PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000016"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000016"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000017"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000017"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000018"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000018"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000019"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000019"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000020"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000020"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000021"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000021"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000022"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000022"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000023"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000023"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000024"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000024"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000025"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000025"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000026"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000026"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000027"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000027"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000028"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000028"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000029"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000029"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000030"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000030"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("c0000000-0000-0000-0004-000000000031"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeatureId = new Guid("b0000000-0000-0000-0000-000000000031"),
+                            PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
                         });
                 });
 
@@ -1270,6 +1837,70 @@ namespace FinancialApplication.Infrastructure.Migrations
                             MonthlyPrice = 1499m,
                             PlanId = new Guid("a0000000-0000-0000-0000-000000000004")
                         });
+                });
+
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.PortfolioAsset", b =>
+                {
+                    b.Property<Guid>("PortfolioAssetId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("AllocationPercentage")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("AssetType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("INR");
+
+                    b.Property<decimal>("CurrentValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("InvestedAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("PurchaseDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("PortfolioAssetId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PortfolioAssets", (string)null);
                 });
 
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.RecoveryCode", b =>
@@ -1379,6 +2010,58 @@ namespace FinancialApplication.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Setting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AvatarColor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("DefaultFy")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PreferredRegime")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Settings");
+                });
+
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.SubscriptionHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1428,6 +2111,59 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("SubscriptionHistories");
+                });
+
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.TaxEntry", b =>
+                {
+                    b.Property<Guid>("TaxEntryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("EntryType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("FinancialYear")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Section")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TaxEntryId");
+
+                    b.HasIndex("UserId", "FinancialYear");
+
+                    b.ToTable("TaxEntries", (string)null);
                 });
 
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.TodayNewsArticle", b =>
@@ -1662,6 +2398,17 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Budget", b =>
+                {
+                    b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.EmailLoginCode", b =>
                 {
                     b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
@@ -1720,6 +2467,28 @@ namespace FinancialApplication.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Payment");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Notification", b =>
+                {
+                    b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.PasswordResetToken", b =>
+                {
+                    b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -1784,6 +2553,17 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.Navigation("Plan");
                 });
 
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.PortfolioAsset", b =>
+                {
+                    b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.RecoveryCode", b =>
                 {
                     b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
@@ -1804,6 +2584,17 @@ namespace FinancialApplication.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Setting", b =>
+                {
+                    b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
+                        .WithOne("Setting")
+                        .HasForeignKey("FinancialApplication.Domain.Domain.Entity.Setting", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.SubscriptionHistory", b =>
                 {
                     b.HasOne("FinancialApplication.Domain.Domain.Entity.UserSubscription", "UserSubscription")
@@ -1821,6 +2612,17 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.Navigation("User");
 
                     b.Navigation("UserSubscription");
+                });
+
+            modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.TaxEntry", b =>
+                {
+                    b.HasOne("FinancialApplication.Domain.Domain.Entity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FinancialApplication.Domain.Domain.Entity.Transaction", b =>
@@ -1905,6 +2707,8 @@ namespace FinancialApplication.Infrastructure.Migrations
                     b.Navigation("Payments");
 
                     b.Navigation("RecoveryCodes");
+
+                    b.Navigation("Setting");
 
                     b.Navigation("SubscriptionHistories");
 

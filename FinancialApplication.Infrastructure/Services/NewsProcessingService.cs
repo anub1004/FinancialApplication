@@ -22,11 +22,9 @@ namespace FinancialApplication.Infrastructure.Services
         private readonly IConfiguration _configuration;
         private readonly IImageCompressionService _imageCompressionService;
 
-        // Cache scraped image URLs to prevent redundant scraping of same article URL
-        // Use ConcurrentDictionary for thread-safe access without explicit locking
         private readonly ConcurrentDictionary<string, string?> _imageUrlCache;
 
-        // Max concurrent scrapes read from configuration
+        
         private readonly int _maxConcurrentScrapes;
 
         public NewsProcessingService(
@@ -44,11 +42,10 @@ namespace FinancialApplication.Infrastructure.Services
 
             _maxConcurrentScrapes = _configuration.GetValue("NewsService:MaxConcurrentScrapes", 10);
 
-            // Initialize cache for image URLs. In production, consider external cache (Redis) for cross-instance sharing
+          
             _imageUrlCache = new ConcurrentDictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <inheritdoc />
         public async Task<string> FetchNewsAsync(string apiUrl, CancellationToken ct = default)
         {
             var apiKey = _configuration["NewsService:ApiKey"]
@@ -70,7 +67,7 @@ namespace FinancialApplication.Infrastructure.Services
             return json;
         }
 
-        /// <inheritdoc />
+    
         public async Task<List<JsonObject>> ProcessArticlesAsync(JsonElement articles, CancellationToken ct = default)
         {
             if (articles.ValueKind != JsonValueKind.Array)
@@ -94,9 +91,7 @@ namespace FinancialApplication.Infrastructure.Services
             var articlesWithImages = new List<JsonObject>(articleList.Count / 2 + 1);
             var articlesWithoutImages = new List<JsonObject>(articleList.Count / 2);
 
-            // FIX: Use configured MaxDegreeOfParallelism instead of 1
-            // Previously MaxDegreeOfParallelism=1 forced sequential execution making the semaphore useless.
-            // Now Parallel.ForEachAsync directly controls concurrency — no semaphore needed.
+        
             var scrapeOptions = new ParallelOptions
             {
                 CancellationToken = ct,
@@ -153,25 +148,22 @@ namespace FinancialApplication.Infrastructure.Services
                     }
                     else
                     {
-                        // Scrape the article page for an image URL
-                        // Concurrency is controlled by Parallel.ForEachAsync's MaxDegreeOfParallelism
+                       
                         imageUrl = await ExtractImageUrlAsync(url, token);
-                        // Cache result (including null) to avoid re-scraping failures
+                       
                         _imageUrlCache.TryAdd(url, imageUrl);
                     }
 
                     if (!string.IsNullOrWhiteSpace(imageUrl))
                     {
-                        // Check if this image is already compressed in DB (dedup)
+                       
                         if (existingBannerUrls.TryGetValue(imageUrl, out var existingBannerId))
                         {
-                            // Use the existing compressed image from DB
                             jsonObject["imageUrl"] = $"/api/blog/banner-image/{existingBannerId}";
                             _logger.LogDebug("Reusing existing compressed image for {ImageUrl}", imageUrl);
                         }
                         else
                         {
-                            // Download the image bytes for later compression (thread-safe)
                             try
                             {
                                 var client = _httpClientFactory.CreateClient("NewsScraper");
@@ -191,7 +183,7 @@ namespace FinancialApplication.Infrastructure.Services
                             catch (Exception downloadEx)
                             {
                                 _logger.LogDebug(downloadEx, "Failed to download image from {ImageUrl}, keeping external URL", imageUrl);
-                                jsonObject["imageUrl"] = imageUrl; // Fallback to external URL
+                                jsonObject["imageUrl"] = imageUrl; 
                             }
                         }
 
@@ -211,8 +203,7 @@ namespace FinancialApplication.Infrastructure.Services
                 }
                 catch (Exception ex)
                 {
-                    // PERF: Log at Warning level instead of Error; this is a recoverable issue
-                    // Individual article failures shouldn't alarm ops; we continue processing
+                    
                     var url = jsonObject?["url"]?.GetValue<string>() ?? "unknown";
                     _logger.LogWarning(ex, "Failed to process article {Url}. Continuing with next article", url);
 
@@ -225,7 +216,7 @@ namespace FinancialApplication.Infrastructure.Services
                 }
             });
 
-            // ── Batch compress and save images to DB (sequential — DbContext is not thread-safe) ──
+          
             if (!pendingImages.IsEmpty)
             {
                 _logger.LogInformation("Compressing and saving {Count} news images to DB", pendingImages.Count);
@@ -249,7 +240,7 @@ namespace FinancialApplication.Infrastructure.Services
                         _dbContext.Banners.Add(banner);
                         await _dbContext.SaveChangesAsync(ct);
 
-                        // Replace the external URL with the local compressed image endpoint
+                        
                         article["imageUrl"] = $"/api/blog/banner-image/{banner.Id}";
 
                         _logger.LogDebug("Compressed news image: {Original} → {Compressed} bytes, saved as {BannerId}",
@@ -257,7 +248,7 @@ namespace FinancialApplication.Infrastructure.Services
                     }
                     catch (Exception ex)
                     {
-                        // If compression/save fails, keep the original external URL (graceful fallback)
+                       
                         _logger.LogWarning(ex, "Failed to compress/save image {ImageUrl}, keeping external URL", originalImageUrl);
                     }
                 }
@@ -266,7 +257,7 @@ namespace FinancialApplication.Infrastructure.Services
             }
 
             // PERF: Combine lists - images first, then no-images
-            // Total allocation: one final list of exact size
+            
             var result = new List<JsonObject>(articlesWithImages.Count + articlesWithoutImages.Count);
             result.AddRange(articlesWithImages);
             result.AddRange(articlesWithoutImages);
@@ -283,7 +274,7 @@ namespace FinancialApplication.Infrastructure.Services
             try
             {
                 // PERF: Reuse HttpClient from factory to leverage connection pooling
-                // IHttpClientFactory manages socket pooling and DNS caching
+                
                 var client = _httpClientFactory.CreateClient("NewsScraper");
                 var html = await client.GetStringAsync(articleUrl, ct);
 
@@ -292,10 +283,7 @@ namespace FinancialApplication.Infrastructure.Services
 
                 string? imageUrl = null;
 
-                // PERF: Use null-coalescing operator to short-circuit on first match
-                // This avoids unnecessary XPath queries once we find an image
-
-                // Priority 1: Meta Tags (fastest, most reliable for OpenGraph data)
+             
                 imageUrl =
                     doc.DocumentNode.SelectSingleNode("//meta[@property='og:image']")
                         ?.GetAttributeValue("content", null)
@@ -308,13 +296,12 @@ namespace FinancialApplication.Infrastructure.Services
                     ?? doc.DocumentNode.SelectSingleNode("//meta[@itemprop='image']")
                         ?.GetAttributeValue("content", null);
 
-                // Priority 2: link rel=image_src
+             
                 imageUrl ??=
                     doc.DocumentNode.SelectSingleNode("//link[@rel='image_src']")
                         ?.GetAttributeValue("href", null);
 
-                // Priority 3: Find prominent image elements (article/main/hero/featured, etc.)
-                // PERF: Use chained null-coalescing for readable fallback chain
+                
                 HtmlNode? imgNode =
                     doc.DocumentNode.SelectSingleNode("//article//img")
                     ?? doc.DocumentNode.SelectSingleNode("//main//img")
@@ -341,18 +328,16 @@ namespace FinancialApplication.Infrastructure.Services
                         ?? imgNode.GetAttributeValue("srcset", null);
                 }
 
-                // PERF: Normalize relative URLs to absolute in one pass
+                
                 if (!string.IsNullOrWhiteSpace(imageUrl))
                 {
-                    // FIX: Reject base64 data URIs (e.g. "data:image/jpg;base64,...")
-                    // These are not valid HTTP URLs and cause errors in downstream image
-                    // proxy/resizer services ("Error when parsing query string").
+                  
                     if (imageUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
                     {
                         _logger.LogDebug("Skipping data URI image for {ArticleUrl}", articleUrl);
                         imageUrl = null;
                     }
-                    // Check if URL is relative (no scheme)
+                 
                     else if (Uri.TryCreate(imageUrl, UriKind.Relative, out _))
                     {
                         try
@@ -367,17 +352,16 @@ namespace FinancialApplication.Infrastructure.Services
                     }
 
                     // PERF: Handle srcset (multiple URLs) - extract first one efficiently
-                    // Srcset format: "url1 1x, url2 2x" - we want the first URL
+                   
                     if (imageUrl?.Contains(",") == true || imageUrl?.Contains(" ") == true)
                     {
-                        // Split by comma to get first srcset entry, then split by space to remove descriptor
+                       
                         var firstEntry = imageUrl.Split(',')[0].Trim();
                         imageUrl = firstEntry.Split(' ')[0].Trim();
                     }
                 }
 
-                // PERF: Only log on Debug level to reduce overhead in production
-                // High-throughput scenarios can have thousands of articles; logging each adds latency
+               
                 if (_logger.IsEnabled(LogLevel.Debug))
                 {
                     if (!string.IsNullOrWhiteSpace(imageUrl))
@@ -394,28 +378,27 @@ namespace FinancialApplication.Infrastructure.Services
             }
             catch (TaskCanceledException) when (ct.IsCancellationRequested)
             {
-                // Let cancellation propagate if host requested shutdown
+                
                 throw;
             }
             catch (HttpRequestException ex)
             {
-                // Network errors (404, timeout, etc.) are expected; don't alarm logs
+                
                 _logger.LogDebug(ex, "HTTP error extracting image from {Url}", articleUrl);
                 return null;
             }
             catch (Exception ex)
             {
-                // Unexpected errors (malformed HTML, parser issues) - still recoverable
+              
                 _logger.LogWarning(ex, "Unexpected error scraping image from {Url}", articleUrl);
                 return null;
             }
         }
 
-        /// <inheritdoc />
         public async Task DeleteOldNewsAsync(int retentionDays, bool isFinanceNews, CancellationToken ct = default)
         {
             // With single-record storage, we only keep the latest record and delete any stale ones.
-            // In practice there should be at most 1 record, but this handles legacy multi-row data too.
+           
             var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
 
             if (isFinanceNews)
@@ -438,7 +421,7 @@ namespace FinancialApplication.Infrastructure.Services
             }
         }
 
-        /// <inheritdoc />
+      
         public async Task SaveNewsAsync(List<JsonObject> processedArticles, bool isFinanceNews, CancellationToken ct = default)
         {
             if (processedArticles.Count == 0)
@@ -486,13 +469,14 @@ namespace FinancialApplication.Infrastructure.Services
         /// </summary>
         private async Task UpsertFinanceNewsAsync(List<JsonObject> processedArticles, JsonSerializerOptions jsonOptions, CancellationToken ct)
         {
-            // Get the single existing record (ordered by latest just in case legacy multi-row data exists)
+         
+            var retentionDays = _configuration.GetValue("NewsService:RetentionDays", 7);
             var existingRecord = await _dbContext.FinanceNewsArticles
                 .OrderByDescending(n => n.CreatedAt)
                 .FirstOrDefaultAsync(ct);
 
             // Build merged JSON array
-            var mergedArray = MergeArticles(existingRecord?.JsonData, processedArticles);
+            var mergedArray = MergeArticles(existingRecord?.JsonData, processedArticles, retentionDays);
 
             if (mergedArray == null)
             {
@@ -504,12 +488,12 @@ namespace FinancialApplication.Infrastructure.Services
 
             if (existingRecord != null)
             {
-                // UPDATE the existing single record in place
+                
                 existingRecord.JsonData = mergedJson;
                 existingRecord.ArticleCount = mergedArray.Count;
                 existingRecord.CreatedAt = DateTime.UtcNow;
 
-                // Delete any extra legacy rows (keep only this one)
+                
                 var extraRows = await _dbContext.FinanceNewsArticles
                     .Where(n => n.Id != existingRecord.Id)
                     .ExecuteDeleteAsync(ct);
@@ -521,7 +505,7 @@ namespace FinancialApplication.Infrastructure.Services
             }
             else
             {
-                // INSERT the first record ever
+                
                 var newRecord = new FinanceNewsArticle
                 {
                     JsonData = mergedJson,
@@ -536,59 +520,45 @@ namespace FinancialApplication.Infrastructure.Services
         }
 
         /// <summary>
-        /// Upserts Today's news articles into exactly 1 database record.
-        /// Reads the existing single record, merges new non-duplicate articles, and updates in place.
+        /// Force-replaces Today's news articles in the database with the latest processed batch.
+        /// Deletes any existing record and inserts a fresh one sorted images-first.
+        /// Unlike Finance News (which paginates and merges), Today's News is always a full fresh snapshot.
         /// </summary>
         private async Task UpsertTodayNewsAsync(List<JsonObject> processedArticles, JsonSerializerOptions jsonOptions, CancellationToken ct)
         {
-            // Get the single existing record
-            var existingRecord = await _dbContext.TodayNewsArticles
-                .OrderByDescending(n => n.CreatedAt)
-                .FirstOrDefaultAsync(ct);
+            // Sort: articles with images at the front, without images at the back
+            var withImages    = processedArticles.Where(a => !string.IsNullOrWhiteSpace(a["imageUrl"]?.GetValue<string>())).ToList();
+            var withoutImages = processedArticles.Where(a =>  string.IsNullOrWhiteSpace(a["imageUrl"]?.GetValue<string>())).ToList();
 
-            // Build merged JSON array
-            var mergedArray = MergeArticles(existingRecord?.JsonData, processedArticles);
+            var sortedArticles = withImages.Concat(withoutImages).ToList();
 
-            if (mergedArray == null)
+            var jsonArray = new JsonArray();
+            foreach (var article in sortedArticles)
             {
-                _logger.LogInformation("All Today's news articles already exist in database. Skipped saving.");
-                return;
+                var cloned = JsonNode.Parse(article.ToJsonString());
+                if (cloned != null) jsonArray.Add(cloned);
             }
 
-            var mergedJson = mergedArray.ToJsonString(jsonOptions);
+            var mergedJson = jsonArray.ToJsonString(jsonOptions);
 
-            if (existingRecord != null)
+            // Force-replace: delete ALL existing Today's News records, then insert one fresh record
+            var deleted = await _dbContext.TodayNewsArticles.ExecuteDeleteAsync(ct);
+            if (deleted > 0)
+                _logger.LogInformation("Cleared {Count} existing Today's news record(s) before fresh insert", deleted);
+
+            var newRecord = new TodayNewsArticle
             {
-                // UPDATE the existing single record in place
-                existingRecord.JsonData = mergedJson;
-                existingRecord.ArticleCount = mergedArray.Count;
-                existingRecord.CreatedAt = DateTime.UtcNow;
-
-                // Delete any extra legacy rows
-                var extraRows = await _dbContext.TodayNewsArticles
-                    .Where(n => n.Id != existingRecord.Id)
-                    .ExecuteDeleteAsync(ct);
-
-                if (extraRows > 0)
-                {
-                    _logger.LogInformation("Cleaned up {Count} legacy Today's news rows, consolidated into 1 record", extraRows);
-                }
-            }
-            else
-            {
-                // INSERT the first record ever
-                var newRecord = new TodayNewsArticle
-                {
-                    JsonData = mergedJson,
-                    ArticleCount = mergedArray.Count,
-                    CreatedAt = DateTime.UtcNow
-                };
-                await _dbContext.TodayNewsArticles.AddAsync(newRecord, ct);
-            }
-
+                JsonData     = mergedJson,
+                ArticleCount = sortedArticles.Count,
+                CreatedAt    = DateTime.UtcNow
+            };
+            await _dbContext.TodayNewsArticles.AddAsync(newRecord, ct);
             await _dbContext.SaveChangesAsync(ct);
-            _logger.LogInformation("Saved Today's news — 1 record with {Count} total articles", mergedArray.Count);
+
+            _logger.LogInformation("Today's news force-replaced — 1 fresh record with {Total} articles ({WithImages} with images, {WithoutImages} without)",
+                sortedArticles.Count, withImages.Count, withoutImages.Count);
         }
+
 
         /// <summary>
         /// Merges new articles into an existing JSON array string, deduplicating by URL.
@@ -611,7 +581,7 @@ namespace FinancialApplication.Infrastructure.Services
                     {
                         foreach (var item in doc.RootElement.EnumerateArray())
                         {
-                            // Skip articles older than retention period
+                           
                             if (item.TryGetProperty("published_at", out var publishedAtEl))
                             {
                                 var publishedStr = publishedAtEl.GetString();
@@ -623,7 +593,6 @@ namespace FinancialApplication.Infrastructure.Services
                                 }
                             }
 
-                            // Track existing URLs for dedup
                             if (item.TryGetProperty("url", out var urlEl))
                             {
                                 var url = urlEl.GetString();
@@ -631,7 +600,6 @@ namespace FinancialApplication.Infrastructure.Services
                                     existingUrls.Add(url);
                             }
 
-                            // Re-add existing article to merged array
                             var cloned = JsonNode.Parse(item.GetRawText());
                             if (cloned != null)
                                 mergedArray.Add(cloned);
@@ -644,7 +612,6 @@ namespace FinancialApplication.Infrastructure.Services
                 }
             }
 
-            // Add only new (non-duplicate) articles
             int addedCount = 0;
             foreach (var article in newArticles)
             {
@@ -665,14 +632,14 @@ namespace FinancialApplication.Infrastructure.Services
 
             if (addedCount == 0 && mergedArray.Count > 0)
             {
-                // No new articles but we may have pruned old ones — still update
+                
                 _logger.LogInformation("No new articles added, but pruned stale entries. Remaining: {Count}", mergedArray.Count);
                 return mergedArray;
             }
             
             if (addedCount == 0)
             {
-                return null; // No new articles to add
+                return null; 
             }
 
             _logger.LogInformation("Merged {NewCount} new articles with {ExistingCount} existing (total: {Total})",

@@ -72,28 +72,62 @@ namespace FinancialApplication.Infrastructure.Services
 
             _logger.LogDebug("Cache MISS for user features: {UserId} — querying database", userId);
 
-            // Resolve features from DB:
-            //   Features f
-            //   JOIN PlanFeatures pf  ON f.Id = pf.FeatureId
-            //   JOIN UserSubscriptions us ON pf.PlanId = us.PlanId
-            //   WHERE us.UserId = @userId
-            //     AND us.Status IN ('Active','Trial')
-            //     AND us.EndDate > UTC_NOW
-            //     AND f.IsActive = true
+            // 1. If user is Admin, grant access to all active features
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user?.Role != null && string.Equals(user.Role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                var allActiveFeatures = await _context.Features
+                    .Where(f => f.IsActive)
+                    .Select(f => f.FeatureKey)
+                    .ToListAsync();
+
+                var adminSet = new HashSet<string>(allActiveFeatures, StringComparer.OrdinalIgnoreCase);
+                _cache.Set(cacheKey, adminSet, new MemoryCacheEntryOptions
+                {
+                    SlidingExpiration = UserFeaturesCacheExpiration
+                }.AddExpirationToken(new CancellationChangeToken(_globalCts.Token)));
+                return adminSet;
+            }
+
+            // 2. Resolve features from active subscription OR fallback to default (Free) plan
             var now = DateTime.UtcNow;
 
-            var features = await _context.Features
-                .Where(f => f.IsActive)
-                .Where(f => f.PlanFeatures.Any(pf =>
-                    _context.UserSubscriptions.Any(us =>
-                        us.PlanId == pf.PlanId &&
-                        us.UserId == userId &&
-                        (us.Status == SubscriptionStatusEnum.Active ||
-                         us.Status == SubscriptionStatusEnum.Trial ||
-                         (us.Status == SubscriptionStatusEnum.Cancelled && us.EndDate > now)) &&
-                        us.EndDate > now)))
-                .Select(f => f.FeatureKey)
-                .ToListAsync();
+            var hasActiveSub = await _context.UserSubscriptions
+                .AnyAsync(us => us.UserId == userId &&
+                                (us.Status == SubscriptionStatusEnum.Active ||
+                                 us.Status == SubscriptionStatusEnum.Trial ||
+                                 (us.Status == SubscriptionStatusEnum.Cancelled && us.EndDate > now)) &&
+                                us.EndDate > now);
+
+            List<string> features;
+            if (hasActiveSub)
+            {
+                features = await _context.Features
+                    .Where(f => f.IsActive)
+                    .Where(f => f.PlanFeatures.Any(pf =>
+                        _context.UserSubscriptions.Any(us =>
+                            us.PlanId == pf.PlanId &&
+                            us.UserId == userId &&
+                            (us.Status == SubscriptionStatusEnum.Active ||
+                             us.Status == SubscriptionStatusEnum.Trial ||
+                             (us.Status == SubscriptionStatusEnum.Cancelled && us.EndDate > now)) &&
+                            us.EndDate > now)))
+                    .Select(f => f.FeatureKey)
+                    .ToListAsync();
+            }
+            else
+            {
+                // Fallback to default (Free) plan features
+                features = await _context.Features
+                    .Where(f => f.IsActive)
+                    .Where(f => f.PlanFeatures.Any(pf => pf.Plan.IsDefault && pf.Plan.IsActive))
+                    .Select(f => f.FeatureKey)
+                    .ToListAsync();
+            }
 
             var featureSet = new HashSet<string>(features, StringComparer.OrdinalIgnoreCase);
 

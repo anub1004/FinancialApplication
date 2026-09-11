@@ -10,6 +10,10 @@ namespace FinancialApplication.Application.DTOs
     {
         public Guid UserId { get; set; }
         public string user { get; set; }
+
+        public string Username { get; set; }
+
+        public string Email { get; set; }
         public string role { get; set; }
     }
 }

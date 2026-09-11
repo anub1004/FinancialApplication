@@ -41,12 +41,23 @@ namespace FinancialApp.Infrastructure.Interfaces
 
         Task<bool> ValidateRefreshTokenAsync(Guid userId, string refreshToken);
 
-        Task<bool> _Logout(Guid userId, string token);
+        Task<bool> LogoutAsync(Guid userId, string token);
 
         Task<AuthDto> CheckAuth(Guid userId, string token);
 
         ClaimsPrincipal ValidateToken(string token);
 
         Task<object> GetQrCodeWithRecoveryCodeAsync(Guid userId, string recoveryCode);
+
+        /// <summary>
+        /// Initiates the password reset flow by generating a token and sending it via email.
+        /// Always returns success to prevent email enumeration attacks.
+        /// </summary>
+        Task ForgotPasswordAsync(string email);
+
+        /// <summary>
+        /// Resets the user's password using a valid reset token.
+        /// </summary>
+        Task<bool> ResetPasswordAsync(ResetPasswordDto dto);
     }
 }

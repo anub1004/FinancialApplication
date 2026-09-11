@@ -54,6 +54,14 @@ namespace FinancialApplication.Api.Filters
                 return;
             }
 
+            // Admin bypass: Administrators have full access to all features
+            var roleClaim = user.FindFirst(ClaimTypes.Role)?.Value;
+            if (string.Equals(roleClaim, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                await next();
+                return;
+            }
+
             // 403 — authenticated but feature not available
             var hasFeature = await _resolver.HasFeatureAsync(userId, _featureKey);
             if (!hasFeature)

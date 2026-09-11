@@ -67,5 +67,8 @@ namespace FinancialApplication.Domain.Domain.Entity
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
         public virtual ICollection<SubscriptionHistory> SubscriptionHistories { get; set; } = new List<SubscriptionHistory>();
+
+        // Setting navigation property
+        public virtual Setting? Setting { get; set; }
     }
 }
